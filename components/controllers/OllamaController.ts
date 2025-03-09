@@ -26,6 +26,7 @@ export class OllamaController {
             return answer;
         } catch (error) {
             console.error("Error in sending ask request:", error);
+            return "";
         }
     }
 
@@ -44,6 +45,7 @@ export class OllamaController {
             return response.message.content;
         } catch (error) {
             console.error("Error in sending ask request:", error);
+            return ""
         }
     }
 
