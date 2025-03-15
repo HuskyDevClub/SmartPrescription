@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
-import {Message} from "ollama";
-import {OllamaController} from "./controllers/OllamaController";
 import {MedicalPrescription} from "./models/MedicalPrescription";
+import {HttpService} from "./http.service";
+import {Message} from "@/components/ollama.interfaces";
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
@@ -29,7 +29,7 @@ export function Dashboard() {
         responses.push("User:")
         responses.push(question ? question : thePrompt);
         responses.push(`AI (${selectedModel}):`)
-        responses.push(await OllamaController.chatAsync(selectedModel, messages, setResponse))
+        // responses.push(await OllamaController.chatAsync(selectedModel, messages, setResponse))
         setAttachments([])
     }
 
@@ -40,7 +40,7 @@ export function Dashboard() {
         responses.push("User:")
         responses.push(thePrompt);
         responses.push(`AI (${selectedModel}):`)
-        responses.push(await OllamaController.chatAsync(selectedModel, messages, setResponse))
+        // responses.push(await OllamaController.chatAsync(selectedModel, messages, setResponse))
         setAttachments([])
     }
 
@@ -52,7 +52,8 @@ export function Dashboard() {
         console.log(messages);
         responses.push("User:")
         responses.push(thePrompt);
-        responses.push(`AI (${selectedModel}):`)
+        responses.push(`AI (${selectedModel}):`);
+        /*
         const result = await OllamaController.chatAsync(selectedModel, messages, setResponse)
         try {
             const data = JSON.parse(result);
@@ -62,6 +63,7 @@ export function Dashboard() {
         }
         responses.push(result)
         setAttachments([])
+        */
     }
 
     async function clearHistory(): Promise<void> {
@@ -88,7 +90,10 @@ export function Dashboard() {
     // Fetch the models when the component mounts
     useEffect(() => {
         async function fetchModels(): Promise<void> {
-            const models: string[] = await OllamaController.getModels();
+            const models: string[] = [];
+            for (const model of (await HttpService.getModels()).data) {
+                models.push(model.name);
+            }
             setOptions(models);
             setSelectedModel(models[0])
         }

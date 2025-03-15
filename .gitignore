@@ -137,3 +137,8 @@ dist
 
 expo-env.d.ts
 # @end expo-cli
+
+# mine
+/backend/.idea
+/backend/bin
+/backend/obj
