@@ -33,37 +33,21 @@ export function Dashboard() {
         setAttachments([])
     }
 
-    async function extractText(): Promise<void> {
+    async function getMedicineInfo(): Promise<void> {
         let thePrompt = "Extract all the text from the image."
         messages.push({role: "user", content: thePrompt, images: attachments} as Message);
         console.log(messages);
         responses.push("User:")
         responses.push(thePrompt);
         responses.push(`AI (${selectedModel}):`)
-        // responses.push(await OllamaController.chatAsync(selectedModel, messages, setResponse))
+        const result: MedicalPrescription = (await HttpService.getImageText({
+            model: selectedModel,
+            images: attachments
+        })).data;
+        setPrescription(result);
+        responses.push("Done")
+        console.log(result);
         setAttachments([])
-    }
-
-    async function getMedicineInfo(): Promise<void> {
-        let thePrompt = 'Extract following information in json format, output only the json nothing else: {' +
-            '"name": the name of the drug, "usage": how to use drug, "frequency": how many times per day, "notes": anything that need special attention' +
-            '}'
-        messages.push({role: "user", content: thePrompt} as Message);
-        console.log(messages);
-        responses.push("User:")
-        responses.push(thePrompt);
-        responses.push(`AI (${selectedModel}):`);
-        /*
-        const result = await OllamaController.chatAsync(selectedModel, messages, setResponse)
-        try {
-            const data = JSON.parse(result);
-            setPrescription(data as MedicalPrescription);
-        } catch (error) {
-            console.log(error)
-        }
-        responses.push(result)
-        setAttachments([])
-        */
     }
 
     async function clearHistory(): Promise<void> {
@@ -122,7 +106,6 @@ export function Dashboard() {
                 ))}
             </select><br/>
             <button onClick={askGpt} disabled={prompt.length === 0}>Chat</button>
-            <button onClick={extractText}>Extract Text</button>
             <button onClick={getMedicineInfo}>Get Medicine Information</button>
             <button onClick={clearHistory}>Clear</button>
             <br/>

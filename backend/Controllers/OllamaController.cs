@@ -1,6 +1,10 @@
+using System.Text;
+using System.Text.Json;
+using backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using OllamaSharp;
 using OllamaSharp.Models;
+using OllamaSharp.Models.Chat;
 
 namespace backend.Controllers;
 
@@ -28,9 +32,31 @@ public class OllamaController : ControllerBase
         }
     }
 
-    [HttpPost("extract/{data}")]
-    public async Task<ActionResult<string>> Extract(string data)
+    [HttpPost("extract")]
+    public async Task<ActionResult<Prescription>> Extract(ImageExtractRequest req)
     {
-        return Ok("");
+        var message = new Message
+        {
+            Content =
+                "Assume given image is the photo of one prescription medication label, extract following information in JSON format:\n{\"Name\": the name of the drug, \"Usage\": how to use drug, \"Frequency\": how many times per day (string), \"Note\": anything that need special attention}\nReturn your answer as a valid JSON object. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.",
+            Images = req.Images,
+            Role = "user"
+        };
+        Message[] messages = [message];
+
+        var chatRequest = new ChatRequest
+        {
+            Messages = messages,
+            Model = req.Model,
+            Format = "json"
+        };
+        StringBuilder result = new();
+        await foreach (var stream in OLLAMA.ChatAsync(chatRequest))
+            if (stream != null)
+                result.Append(stream.Message.Content);
+
+        var thePrescription = JsonSerializer.Deserialize<Prescription>(result.ToString())!;
+
+        return thePrescription;
     }
 }
