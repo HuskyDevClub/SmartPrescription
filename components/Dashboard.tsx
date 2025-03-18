@@ -3,7 +3,7 @@ import {MedicalPrescription} from "./models/MedicalPrescription";
 import {HttpService} from "./http.service";
 import {ChatRequest, Message} from "@/components/ollama.interfaces";
 import {PrescriptionsTable, PrescriptionsTableHandle} from "@/components/PrescriptionsTable";
-import {Button, StyleSheet, Text, TextInput, View} from "react-native";
+import {ActivityIndicator, Button, Modal, StyleSheet, Text, TextInput, View} from "react-native";
 import {Picker} from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import {ImagePickerResult} from 'expo-image-picker';
@@ -16,6 +16,7 @@ export function Dashboard() {
     const [response, setResponse] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
     const [attachments, setAttachments] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
     // Create a ref to access the PrescriptionsTable methods
     const prescriptionsTableRef = useRef<PrescriptionsTableHandle>(null);
 
@@ -128,22 +129,32 @@ export function Dashboard() {
             }
         }
         if (attachments.length > 0) {
+            // Show loading spinner
+            setIsLoading(true);
+
             let thePrompt = "Extract medical prescription from the image."
             messages.push({role: "user", content: thePrompt, images: attachments} as Message);
             responses.push("User:")
             responses.push(thePrompt);
             responses.push(`AI (${selectedModel}):`)
-            const result: MedicalPrescription = (await HttpService.getImageText({
-                model: selectedModel,
-                images: attachments
-            })).data;
-            // Trigger adding a new prescription from the parent component
-            if (prescriptionsTableRef.current) {
-                // Call the handleAdd function exposed via ref
-                prescriptionsTableRef.current.handleAdd(result);
+            try {
+                const result: MedicalPrescription = (await HttpService.getImageText({
+                    model: selectedModel,
+                    images: attachments
+                })).data;
+                // Trigger adding a new prescription from the parent component
+                if (prescriptionsTableRef.current) {
+                    // Call the handleAdd function exposed via ref
+                    prescriptionsTableRef.current.handleAdd(result);
+                }
+            } catch (error) {
+                console.error("Error processing image:", error);
+                responses.push("Error processing image");
+            } finally {
+                // Hide loading spinner regardless of success or failure
+                setIsLoading(false);
             }
             responses.push("Done")
-            console.log(result);
             setAttachments([])
         }
     }
@@ -185,6 +196,27 @@ export function Dashboard() {
         }
     };
 
+    // Add this Modal component to your render function
+    const LoadingModal = () => (
+        <Modal
+            transparent={true}
+            animationType="fade"
+            visible={isLoading}
+            onRequestClose={() => {
+            }} // Required on Android
+        >
+            <View style={styles.modalBackground}>
+                <View style={styles.spinnerContainer}>
+                    <ActivityIndicator
+                        size="large"
+                        color="#0275d8" // Bootstrap primary blue
+                    />
+                    <Text style={styles.loadingText}>Processing prescription...</Text>
+                </View>
+            </View>
+        </Modal>
+    );
+
     return (
         <View>
             <RenderResponse/>
@@ -205,6 +237,7 @@ export function Dashboard() {
             <Button onPress={takePrescriptionPhoto} title={"Take a photo of your prescription"}/>
             <Button onPress={selectPrescriptionPhoto} title={"Select a photo of your prescription"}/>
             <PrescriptionsTable ref={prescriptionsTableRef}/>
+            <LoadingModal/>
         </View>
     );
 }
@@ -219,5 +252,39 @@ const styles = StyleSheet.create({
     inputForm: {
         flexDirection: 'row',
         alignItems: 'center',
-    }
+    },
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    button: {
+        backgroundColor: '#0275d8', // Bootstrap primary blue
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 5,
+    },
+    buttonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dim the screen with semi-transparent background
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    spinnerContainer: {
+        backgroundColor: 'white',
+        borderRadius: 10,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#333',
+    },
 });
