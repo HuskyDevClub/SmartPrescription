@@ -1,4 +1,5 @@
 import axios from 'axios';
+import {fetch} from 'expo/fetch';
 
 const URL: string = "http://localhost:5065/api";
 

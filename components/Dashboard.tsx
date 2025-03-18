@@ -5,6 +5,7 @@ import {ChatRequest, Message} from "@/components/ollama.interfaces";
 import {PrescriptionsTable, PrescriptionsTableHandle} from "@/components/PrescriptionsTable";
 import {Button, StyleSheet, Text, TextInput, View} from "react-native";
 import {Picker} from '@react-native-picker/picker';
+import {ImagePickerResponse, launchCamera, launchImageLibrary} from 'react-native-image-picker';
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
@@ -122,6 +123,30 @@ export function Dashboard() {
         }
     };
 
+    async function takePrescriptionPhoto(): Promise<void> {
+        const result: ImagePickerResponse = await launchCamera({
+            mediaType: "photo"
+        });
+        if (result.assets) {
+            for (let i = 0; i < result.assets.length; i++) {
+                attachments.push(result.assets[i].uri!.split(",")[1])
+            }
+        }
+        await getMedicineInfo();
+    }
+
+    async function selectPrescriptionPhoto(): Promise<void> {
+        const result: ImagePickerResponse = await launchImageLibrary({
+            mediaType: "photo"
+        });
+        if (result.assets) {
+            for (let i = 0; i < result.assets.length; i++) {
+                attachments.push(result.assets[i].uri!.split(",")[1])
+            }
+        }
+        await getMedicineInfo();
+    }
+
     // Fetch the models when the component mounts
     useEffect(() => {
         async function fetchModels(): Promise<void> {
@@ -167,6 +192,8 @@ export function Dashboard() {
             <Button onPress={askGpt} disabled={prompt.length === 0} title="Chat"/>
             <Button onPress={getMedicineInfo} title="Get Medicine Information"/>
             <Button onPress={clearHistory} title="Clear"/>
+            <Button onPress={takePrescriptionPhoto} title={"Take a photo of your prescription"}/>
+            <Button onPress={selectPrescriptionPhoto} title={"Select a photo of your prescription"}/>
             <PrescriptionsTable ref={prescriptionsTableRef}/>
         </View>
     );
