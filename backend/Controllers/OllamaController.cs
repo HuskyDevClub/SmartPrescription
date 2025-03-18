@@ -59,4 +59,58 @@ public class OllamaController : ControllerBase
 
         return thePrescription;
     }
+
+    [HttpPost("chat")]
+    public async Task<IActionResult> Chat(ChatRequest req)
+    {
+        // Set headers for SSE
+        Response.Headers.Append("Content-Type", "text/event-stream");
+        Response.Headers.Append("Cache-Control", "no-cache");
+        Response.Headers.Append("Connection", "keep-alive");
+
+        // Create a cancellation token linked to the client connection
+        var cancellationToken = HttpContext.RequestAborted;
+
+        try
+        {
+            // Use StreamWriter to send data to the client
+            await using var writer = new StreamWriter(Response.Body, Encoding.UTF8);
+
+            // Stream each chunk from Ollama
+            await foreach (var stream in OLLAMA.ChatAsync(req).WithCancellation(cancellationToken))
+            {
+                if (stream == null || string.IsNullOrEmpty(stream.Message.Content)) continue;
+
+                // Send serialized message
+                await writer.WriteAsync(stream.Message.Content);
+                await writer.FlushAsync(cancellationToken);
+            }
+
+            return new EmptyResult();
+        }
+        catch (OperationCanceledException)
+        {
+            // Client disconnected
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            // If we haven't started streaming yet, return an error
+            if (!Response.HasStarted) return StatusCode(500, $"Error streaming chat: {ex.Message}");
+
+            // If we're already streaming, try to send an error
+            try
+            {
+                await using var writer = new StreamWriter(Response.Body, Encoding.UTF8);
+                await writer.WriteAsync($",{{\"error\":\"{ex.Message}\"}}]");
+                await writer.FlushAsync(cancellationToken);
+            }
+            catch
+            {
+                // Ignore exceptions when trying to send error in stream
+            }
+
+            return new EmptyResult();
+        }
+    }
 }

@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {MedicalPrescription} from "./models/MedicalPrescription";
 import {HttpService} from "./http.service";
-import {Message} from "@/components/ollama.interfaces";
+import {ChatRequest, Message} from "@/components/ollama.interfaces";
 import {PrescriptionsTable, PrescriptionsTableHandle} from "@/components/PrescriptionsTable";
 
 export function Dashboard() {
@@ -25,13 +25,56 @@ export function Dashboard() {
         setPrompt("");
     }
 
+    const sendChatRequest = async (requestData: ChatRequest) => {
+        try {
+            // Use fetch API for better streaming support
+            const streamedResponse = await HttpService.chatWithLLM(requestData);
+
+            // Get reader from response body stream
+            const reader = streamedResponse.body!.getReader();
+            const decoder = new TextDecoder();
+
+            // the response string
+            let aiResponse: string = "";
+
+            // Read stream chunks
+            while (true) {
+                const {done, value} = await reader.read();
+
+                if (done) {
+                    break;
+                }
+
+                // Decode chunk and process SSE format
+                const chunk = decoder.decode(value, {stream: true});
+
+                // Update response
+                aiResponse += chunk;
+                setResponse(aiResponse);
+            }
+
+            return aiResponse
+        } catch (error) {
+            console.error('Error fetching stream:', error);
+            throw error;
+        }
+    };
+
     async function chat(thePrompt: string, question: string = ""): Promise<void> {
         messages.push({role: "user", content: thePrompt, images: attachments} as Message);
-        console.log(messages);
         responses.push("User:")
         responses.push(question ? question : thePrompt);
         responses.push(`AI (${selectedModel}):`)
-        // responses.push(await OllamaController.chatAsync(selectedModel, messages, setResponse))
+        try {
+            const theResult = await sendChatRequest({
+                messages: messages,
+                model: selectedModel
+            } as ChatRequest);
+            setResponse("");
+            responses.push(theResult)
+        } catch (error) {
+            responses.push(`Failed to send message:${error}`)
+        }
         setAttachments([])
     }
 

@@ -13,4 +13,16 @@ export class HttpService {
     public static getImageText(data: object): Promise<any> {
         return axios.post(`${URL}/ollama/extract`, data)
     }
+
+    // chat with llm
+    public static chatWithLLM(requestData: object) {
+        return fetch(`${URL}/ollama/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'text/event-stream'
+            },
+            body: JSON.stringify(requestData)
+        })
+    }
 }
