@@ -1,7 +1,8 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {MedicalPrescription} from "./models/MedicalPrescription";
 import {HttpService} from "./http.service";
 import {Message} from "@/components/ollama.interfaces";
+import {PrescriptionsTable, PrescriptionsTableHandle} from "@/components/PrescriptionsTable";
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
@@ -11,7 +12,8 @@ export function Dashboard() {
     const [response, setResponse] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
     const [attachments, setAttachments] = useState<string[]>([]);
-    const [prescription, setPrescription] = useState<MedicalPrescription | null>(null);
+    // Create a ref to access the PrescriptionsTable methods
+    const prescriptionsTableRef = useRef<PrescriptionsTableHandle>(null);
 
     // ask gpt the question
     async function askGpt(): Promise<void> {
@@ -44,7 +46,11 @@ export function Dashboard() {
             model: selectedModel,
             images: attachments
         })).data;
-        setPrescription(result);
+        // Trigger adding a new prescription from the parent component
+        if (prescriptionsTableRef.current) {
+            // Call the handleAdd function exposed via ref
+            prescriptionsTableRef.current.handleAdd(result);
+        }
         responses.push("Done")
         console.log(result);
         setAttachments([])
@@ -110,12 +116,7 @@ export function Dashboard() {
             <button onClick={clearHistory}>Clear</button>
             <br/>
             <input type="file" id="fileInput" multiple onChange={handleFileChange} className="hidden"/><br/>
-            {prescription && (<div>
-                <p>name:{prescription.name}</p>
-                <p>usage:{prescription.usage}</p>
-                <p>frequency:{prescription.frequency}</p>
-                <p>notes:{prescription.notes}</p>
-            </div>)}
+            <PrescriptionsTable ref={prescriptionsTableRef}></PrescriptionsTable>
         </div>
     );
 }
