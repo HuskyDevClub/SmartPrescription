@@ -5,7 +5,8 @@ import {ChatRequest, Message} from "@/components/ollama.interfaces";
 import {PrescriptionsTable, PrescriptionsTableHandle} from "@/components/PrescriptionsTable";
 import {Button, StyleSheet, Text, TextInput, View} from "react-native";
 import {Picker} from '@react-native-picker/picker';
-import {ImagePickerResponse, launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import * as ImagePicker from 'expo-image-picker';
+import {ImagePickerResult} from 'expo-image-picker';
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
@@ -81,81 +82,87 @@ export function Dashboard() {
         setAttachments([])
     }
 
-    async function getMedicineInfo(): Promise<void> {
-        let thePrompt = "Extract all the text from the image."
-        messages.push({role: "user", content: thePrompt, images: attachments} as Message);
-        console.log(messages);
-        responses.push("User:")
-        responses.push(thePrompt);
-        responses.push(`AI (${selectedModel}):`)
-        const result: MedicalPrescription = (await HttpService.getImageText({
-            model: selectedModel,
-            images: attachments
-        })).data;
-        // Trigger adding a new prescription from the parent component
-        if (prescriptionsTableRef.current) {
-            // Call the handleAdd function exposed via ref
-            prescriptionsTableRef.current.handleAdd(result);
-        }
-        responses.push("Done")
-        console.log(result);
-        setAttachments([])
-    }
-
     async function clearHistory(): Promise<void> {
         setResponses([]);
         setMessages([]);
         setAttachments([]);
     }
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            for (let i = 0; i < event.target.files.length; i++) {
-                let reader = new FileReader();
-                reader.readAsDataURL(event.target.files[i]);
-                reader.onload = function () {
-                    attachments.push(reader.result!.toString().split(",")[1])
-                };
-                reader.onerror = function (error) {
-                    console.log('Error: ', error);
-                };
-            }
-        }
-    };
-
     async function takePrescriptionPhoto(): Promise<void> {
-        const result: ImagePickerResponse = await launchCamera({
-            mediaType: "photo"
+        // Clear attachments
+        setAttachments([])
+        // Request permission
+        await ImagePicker.requestCameraPermissionsAsync()
+        // Launch camera for taking photo
+        const result: ImagePickerResult = await ImagePicker.launchCameraAsync({
+            base64: true,
         });
-        if (result.assets) {
-            for (let i = 0; i < result.assets.length; i++) {
-                attachments.push(result.assets[i].uri!.split(",")[1])
-            }
+        // Process image if any photo was taken
+        if (!result.canceled) {
+            await sendSelectPrescriptionPhoto(result)
         }
-        await getMedicineInfo();
     }
 
     async function selectPrescriptionPhoto(): Promise<void> {
-        const result: ImagePickerResponse = await launchImageLibrary({
-            mediaType: "photo"
+        // Clear attachments
+        setAttachments([])
+        // Request permission
+        await ImagePicker.requestMediaLibraryPermissionsAsync()
+        // Prompt user for selecting photo
+        const result: ImagePickerResult = await ImagePicker.launchImageLibraryAsync({
+            base64: true,
         });
+        // Process image if any photo was selected
+        if (!result.canceled) {
+            await sendSelectPrescriptionPhoto(result)
+        }
+    }
+
+    async function sendSelectPrescriptionPhoto(result: ImagePickerResult): Promise<void> {
         if (result.assets) {
             for (let i = 0; i < result.assets.length; i++) {
-                attachments.push(result.assets[i].uri!.split(",")[1])
+                const theBase64 = result.assets[i].base64;
+                if (theBase64) {
+                    attachments.push(theBase64)
+                }
             }
         }
-        await getMedicineInfo();
+        if (attachments.length > 0) {
+            let thePrompt = "Extract medical prescription from the image."
+            messages.push({role: "user", content: thePrompt, images: attachments} as Message);
+            responses.push("User:")
+            responses.push(thePrompt);
+            responses.push(`AI (${selectedModel}):`)
+            const result: MedicalPrescription = (await HttpService.getImageText({
+                model: selectedModel,
+                images: attachments
+            })).data;
+            // Trigger adding a new prescription from the parent component
+            if (prescriptionsTableRef.current) {
+                // Call the handleAdd function exposed via ref
+                prescriptionsTableRef.current.handleAdd(result);
+            }
+            responses.push("Done")
+            console.log(result);
+            setAttachments([])
+        }
     }
 
     // Fetch the models when the component mounts
     useEffect(() => {
         async function fetchModels(): Promise<void> {
             const models: string[] = [];
-            for (const model of (await HttpService.getModels()).data) {
-                models.push(model.name);
+            try {
+                for (const model of (await HttpService.getModels()).data) {
+                    models.push(model.name);
+                }
+            } catch (e) {
+                console.error(e)
             }
             setOptions(models);
-            setSelectedModel(models[0])
+            if (models) {
+                setSelectedModel(models[0])
+            }
         }
 
         fetchModels().then(); // Call the async function
@@ -163,7 +170,7 @@ export function Dashboard() {
 
     // Render item for list
     const RenderResponse: React.FC = () => {
-        if (responses) {
+        if (responses && responses.length > 0) {
             return (
                 <View>
                     <Text>Response:</Text>
@@ -183,22 +190,23 @@ export function Dashboard() {
             <RenderResponse/>
             <TextInput placeholder="Message GPT Assistance" value={prompt}
                        onChangeText={(text: string) => setPrompt(text)} style={styles.input}/>
-            <Text className="form-label">Model: </Text>
-            <Picker onValueChange={(itemValue: string, itemIndex: number) => setSelectedModel(itemValue)}>
-                {options.map((option, index) => (
-                    <Picker.Item label={option} value={option} key={index}/>
-                ))}
-            </Picker>
-            <Button onPress={askGpt} disabled={prompt.length === 0} title="Chat"/>
-            <Button onPress={getMedicineInfo} title="Get Medicine Information"/>
-            <Button onPress={clearHistory} title="Clear"/>
+            <View style={styles.inputForm}>
+                <Text className="form-label">Model:</Text>
+                <Picker onValueChange={(itemValue: string, _) => setSelectedModel(itemValue)} style={{flex: 1}}>
+                    {options.map((option, index) => (
+                        <Picker.Item label={option} value={option} key={index}/>
+                    ))}
+                </Picker>
+            </View>
+            <View style={styles.inputForm}>
+                <Button onPress={askGpt} disabled={prompt.length === 0} title="Chat"/>
+                <Button onPress={clearHistory} title="Clear"/>
+            </View>
             <Button onPress={takePrescriptionPhoto} title={"Take a photo of your prescription"}/>
             <Button onPress={selectPrescriptionPhoto} title={"Select a photo of your prescription"}/>
             <PrescriptionsTable ref={prescriptionsTableRef}/>
         </View>
     );
-
-    // <input type="file" id="fileInput" multiple onChange={handleFileChange} className="hidden"/>
 }
 
 const styles = StyleSheet.create({
@@ -207,6 +215,9 @@ const styles = StyleSheet.create({
         borderColor: '#ddd',
         borderRadius: 5,
         padding: 50,
-        marginBottom: 15,
     },
+    inputForm: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    }
 });

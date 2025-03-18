@@ -1,6 +1,6 @@
 import React, {forwardRef, useEffect, useImperativeHandle, useState} from 'react';
 import {MedicalPrescription} from "./models/MedicalPrescription";
-import {Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {UserData} from "./UserData";
 
 // Define types
@@ -45,28 +45,40 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
             editItem.note = editedValues.note
         } else {
             myPrescriptions.push({
-                id: (myPrescriptions.length + 1).toString(),
+                id: Date.now().toString(),
                 name: editedValues.name,
                 usage: editedValues.usage,
                 frequency: editedValues.frequency,
                 note: editedValues.note,
             })
-            await UserData.save();
-
         }
+        await UserData.save();
         setModalVisible(false);
     };
 
     // Handler for delete button
     const handleDelete = async (id: string): Promise<void> => {
-        // Show confirmation alert or implement your preferred confirmation method
-        const confirmDelete = window.confirm('Are you sure you want to delete this item?');
-        if (confirmDelete) {
-            const item_id: number = myPrescriptions.findIndex(item => item.id !== id);
-            if (item_id >= 0) {
-                delete myPrescriptions[item_id];
+        // Remove prescription at given index
+        const removePrescriptionAt = async (index: number): Promise<void> => {
+            if (index >= 0) {
+                myPrescriptions.splice(index, 1);
+                await UserData.save()
+                console.log(myPrescriptions);
+                setEditItem({} as TableItem);
             }
         }
+        // Alert user before removal
+        Alert.alert('Warning', 'Are you sure you want to delete this item?', [
+            {
+                text: 'Cancel',
+                style: 'cancel',
+            },
+            {
+                text: 'Confirm', onPress: async () => {
+                    await removePrescriptionAt(myPrescriptions.findIndex(item => item.id === id));
+                }
+            },
+        ]);
     };
 
     // Handler for add button
@@ -147,7 +159,7 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
                 </TouchableOpacity>
             </View>
 
-            {myPrescriptions.map((p, i) => (renderItem(p, i)))}
+            {myPrescriptions.map((p, i) => renderItem(p, i))}
 
             {/* Edit Modal */}
             <Modal
