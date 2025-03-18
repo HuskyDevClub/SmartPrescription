@@ -1,6 +1,7 @@
-import React, {forwardRef, useImperativeHandle, useState} from 'react';
+import React, {forwardRef, useEffect, useImperativeHandle, useState} from 'react';
 import {MedicalPrescription} from "./models/MedicalPrescription";
-import {FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {UserData} from "./UserData";
 
 // Define types
 interface TableItem extends MedicalPrescription {
@@ -13,7 +14,6 @@ export interface PrescriptionsTableHandle {
 }
 
 export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) => {
-    const [PrescriptionsTableItems, setPrescriptionsTableItems] = useState<TableItem[]>([]);
     const [modalVisible, setModalVisible] = useState<boolean>(false);
     const [editItem, setEditItem] = useState<TableItem | null>(null);
     const [editedValues, setEditedValues] = useState<MedicalPrescription>({
@@ -22,6 +22,7 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
         frequency: '',
         note: '',
     });
+    const [myPrescriptions, setMyPrescriptions] = useState<TableItem[]>([]);
 
     // Handler for edit button
     const handleEdit = (item: TableItem): void => {
@@ -36,31 +37,35 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
     };
 
     // Handler for saving changes
-    const handleSave = (): void => {
+    const handleSave = async (): Promise<void> => {
         if (editItem) {
             editItem.name = editedValues.name
             editItem.usage = editedValues.usage
             editItem.frequency = editedValues.frequency
             editItem.note = editedValues.note
         } else {
-            PrescriptionsTableItems.push({
-                id: (PrescriptionsTableItems.length + 1).toString(),
+            myPrescriptions.push({
+                id: (myPrescriptions.length + 1).toString(),
                 name: editedValues.name,
                 usage: editedValues.usage,
                 frequency: editedValues.frequency,
                 note: editedValues.note,
             })
+            await UserData.save();
+
         }
         setModalVisible(false);
     };
 
     // Handler for delete button
-    const handleDelete = (id: string): void => {
+    const handleDelete = async (id: string): Promise<void> => {
         // Show confirmation alert or implement your preferred confirmation method
         const confirmDelete = window.confirm('Are you sure you want to delete this item?');
         if (confirmDelete) {
-            const updatedData = PrescriptionsTableItems.filter(item => item.id !== id);
-            setPrescriptionsTableItems(updatedData);
+            const item_id: number = myPrescriptions.findIndex(item => item.id !== id);
+            if (item_id >= 0) {
+                delete myPrescriptions[item_id];
+            }
         }
     };
 
@@ -86,6 +91,15 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
         handleAdd
     }));
 
+    // Fetch my prescriptions when the component mounts
+    useEffect(() => {
+        async function fetchMyPrescriptions(): Promise<void> {
+            setMyPrescriptions(await UserData.try_get("Prescriptions", []))
+        }
+
+        fetchMyPrescriptions().then(); // Call the async function
+    }, []);
+
 // Header component
     const TableHeader: React.FC = () => (
         <View style={styles.headerRow}>
@@ -98,8 +112,8 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
     );
 
     // Render item for list
-    const renderItem = ({item}: { item: TableItem }): React.ReactElement => (
-        <View style={styles.row}>
+    const renderItem = (item: TableItem, index: number): React.ReactElement => (
+        <View style={styles.row} key={index}>
             <Text style={[styles.cell, styles.nameColumn]}>{item.name}</Text>
             <Text style={[styles.cell, styles.usageColumn]}>{item.usage}</Text>
             <Text style={[styles.cell, styles.frequencyColumn]}>{item.frequency}</Text>
@@ -132,11 +146,8 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
                     <Text style={styles.addButtonText}>+ Add New</Text>
                 </TouchableOpacity>
             </View>
-            <FlatList
-                data={PrescriptionsTableItems}
-                renderItem={renderItem}
-                keyExtractor={(item: TableItem) => item.id}
-            />
+
+            {myPrescriptions.map((p, i) => (renderItem(p, i)))}
 
             {/* Edit Modal */}
             <Modal

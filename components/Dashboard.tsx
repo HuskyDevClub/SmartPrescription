@@ -3,6 +3,8 @@ import {MedicalPrescription} from "./models/MedicalPrescription";
 import {HttpService} from "./http.service";
 import {ChatRequest, Message} from "@/components/ollama.interfaces";
 import {PrescriptionsTable, PrescriptionsTableHandle} from "@/components/PrescriptionsTable";
+import {Button, StyleSheet, Text, TextInput, View} from "react-native";
+import {Picker} from '@react-native-picker/picker';
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
@@ -134,32 +136,50 @@ export function Dashboard() {
         fetchModels().then(); // Call the async function
     }, []); // Empty dependency array ensures it only runs once
 
+    // Render item for list
+    const RenderResponse: React.FC = () => {
+        if (responses) {
+            return (
+                <View>
+                    <Text>Response:</Text>
+                    {responses.map((option, index) => (
+                        <Text key={index}>{option}</Text>
+                    ))}
+                    <Text>{response}</Text>
+                </View>
+            )
+        } else {
+            return (<Text>What can I help with?</Text>)
+        }
+    };
+
     return (
-        <div>
-            <div hidden={responses.length === 0 && responses.length === 0}>
-                <h2>Response:</h2>
-                {responses.map((option, index) => (
-                    <p key={index}>{option}</p>
-                ))}
-                <p>{response}</p>
-            </div>
-            <h2 hidden={responses.length != 0 || responses.length != 0}>What can I help with?</h2>
-            <textarea placeholder="Message GPT Assistance" rows={10} cols={50} value={prompt}
-                      onChange={e => setPrompt(e.target.value)}/><br/>
-            <label className="form-label">Model: </label>
-            <select onChange={e => setSelectedModel(e.target.value)}>
+        <View>
+            <RenderResponse/>
+            <TextInput placeholder="Message GPT Assistance" value={prompt}
+                       onChangeText={(text: string) => setPrompt(text)} style={styles.input}/>
+            <Text className="form-label">Model: </Text>
+            <Picker onValueChange={(itemValue: string, itemIndex: number) => setSelectedModel(itemValue)}>
                 {options.map((option, index) => (
-                    <option key={index} value={option}>
-                        {option}
-                    </option>
+                    <Picker.Item label={option} value={option} key={index}/>
                 ))}
-            </select><br/>
-            <button onClick={askGpt} disabled={prompt.length === 0}>Chat</button>
-            <button onClick={getMedicineInfo}>Get Medicine Information</button>
-            <button onClick={clearHistory}>Clear</button>
-            <br/>
-            <input type="file" id="fileInput" multiple onChange={handleFileChange} className="hidden"/><br/>
-            <PrescriptionsTable ref={prescriptionsTableRef}></PrescriptionsTable>
-        </div>
+            </Picker>
+            <Button onPress={askGpt} disabled={prompt.length === 0} title="Chat"/>
+            <Button onPress={getMedicineInfo} title="Get Medicine Information"/>
+            <Button onPress={clearHistory} title="Clear"/>
+            <PrescriptionsTable ref={prescriptionsTableRef}/>
+        </View>
     );
+
+    // <input type="file" id="fileInput" multiple onChange={handleFileChange} className="hidden"/>
 }
+
+const styles = StyleSheet.create({
+    input: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 5,
+        padding: 50,
+        marginBottom: 15,
+    },
+});
