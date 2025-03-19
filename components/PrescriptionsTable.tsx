@@ -1,19 +1,27 @@
-import React, {forwardRef, useEffect, useImperativeHandle, useState} from 'react';
-import {MedicalPrescription} from "./models/MedicalPrescription";
-import {Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import {UserData} from "./UserData";
+import React, {useEffect, useState} from 'react';
+import {MedicalPrescription} from "@/components/models/MedicalPrescription";
+import {
+    ActivityIndicator,
+    Alert,
+    Button,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import {UserDataService} from "@/components/services/UserDataService";
+import * as ImagePicker from "expo-image-picker";
+import {ImagePickerResult} from "expo-image-picker";
+import {HttpService} from "@/components/services/HttpService";
 
 // Define types
 interface TableItem extends MedicalPrescription {
     id: string;
 }
 
-// Define handle type for the ref
-export interface PrescriptionsTableHandle {
-    handleAdd: (value: MedicalPrescription) => void;
-}
-
-export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) => {
+export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
     const [editItem, setEditItem] = useState<TableItem | null>(null);
     const [editedValues, setEditedValues] = useState<MedicalPrescription>({
@@ -23,6 +31,8 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
         note: '',
     });
     const [myPrescriptions, setMyPrescriptions] = useState<TableItem[]>([]);
+    const [attachments, setAttachments] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     // Handler for edit button
     const handleEdit = (item: TableItem): void => {
@@ -52,7 +62,7 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
                 note: editedValues.note,
             })
         }
-        await UserData.save();
+        await UserDataService.save();
         setModalVisible(false);
     };
 
@@ -62,8 +72,7 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
         const removePrescriptionAt = async (index: number): Promise<void> => {
             if (index >= 0) {
                 myPrescriptions.splice(index, 1);
-                await UserData.save()
-                console.log(myPrescriptions);
+                await UserDataService.save()
                 setEditItem({} as TableItem);
             }
         }
@@ -98,15 +107,68 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
         })
     }
 
-    // Expose functions via ref
-    useImperativeHandle(ref, () => ({
-        handleAdd
-    }));
+    async function takePrescriptionPhoto(): Promise<void> {
+        // Clear attachments
+        setAttachments([])
+        // Request permission
+        await ImagePicker.requestCameraPermissionsAsync()
+        // Launch camera for taking photo
+        const result: ImagePickerResult = await ImagePicker.launchCameraAsync({
+            base64: true,
+        });
+        // Process image if any photo was taken
+        if (!result.canceled) {
+            await sendSelectPrescriptionPhoto(result)
+        }
+    }
+
+    async function selectPrescriptionPhoto(): Promise<void> {
+        // Clear attachments
+        setAttachments([])
+        // Request permission
+        await ImagePicker.requestMediaLibraryPermissionsAsync()
+        // Prompt user for selecting photo
+        const result: ImagePickerResult = await ImagePicker.launchImageLibraryAsync({
+            base64: true,
+        });
+        // Process image if any photo was selected
+        if (!result.canceled) {
+            await sendSelectPrescriptionPhoto(result)
+        }
+    }
+
+    async function sendSelectPrescriptionPhoto(result: ImagePickerResult): Promise<void> {
+        if (result.assets) {
+            for (let i = 0; i < result.assets.length; i++) {
+                const theBase64 = result.assets[i].base64;
+                if (theBase64) {
+                    attachments.push(theBase64)
+                }
+            }
+        }
+        if (attachments.length > 0) {
+            // Show loading spinner
+            setIsLoading(true);
+            try {
+                const result: MedicalPrescription = (await HttpService.getImageText({
+                    images: attachments
+                })).data;
+                // Trigger adding a new prescription from the parent component
+                handleAdd(result);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                // Hide loading spinner regardless of success or failure
+                setIsLoading(false);
+            }
+            setAttachments([])
+        }
+    }
 
     // Fetch my prescriptions when the component mounts
     useEffect(() => {
         async function fetchMyPrescriptions(): Promise<void> {
-            setMyPrescriptions(await UserData.try_get("Prescriptions", []))
+            setMyPrescriptions(await UserDataService.try_get("Prescriptions", []))
         }
 
         fetchMyPrescriptions().then(); // Call the async function
@@ -147,8 +209,32 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
         </View>
     );
 
+    // Add this Modal component to your render function
+    const LoadingModal = () => (
+        <Modal
+            transparent={true}
+            animationType="fade"
+            visible={isLoading}
+            onRequestClose={() => {
+            }} // Required on Android
+        >
+            <View style={styles.modalBackground}>
+                <View style={styles.spinnerContainer}>
+                    <ActivityIndicator
+                        size="large"
+                        color="#0275d8" // Bootstrap primary blue
+                    />
+                    <Text style={styles.loadingText}>Processing prescription...</Text>
+                </View>
+            </View>
+        </Modal>
+    );
+
     return (
         <View style={styles.container}>
+            <LoadingModal/>
+            <Button onPress={takePrescriptionPhoto} title={"Take a photo of your prescription"}/>
+            <Button onPress={selectPrescriptionPhoto} title={"Select a photo of your prescription"}/>
             <View style={styles.headerContainer}>
                 <TableHeader/>
                 <TouchableOpacity
@@ -219,7 +305,7 @@ export const PrescriptionsTable = forwardRef<PrescriptionsTableHandle>((_, ref) 
             </Modal>
         </View>
     )
-})
+}
 
 
 const styles = StyleSheet.create({
@@ -355,5 +441,23 @@ const styles = StyleSheet.create({
     addButtonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dim the screen with semi-transparent background
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    spinnerContainer: {
+        backgroundColor: 'white',
+        borderRadius: 10,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#333',
     },
 });

@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system';
 
 const PATH: string = FileSystem.documentDirectory + "userData.json";
 
-export class UserData {
+export class UserDataService {
 
     private static isInitialized: boolean = false;
 

@@ -1,24 +1,17 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {MedicalPrescription} from "./models/MedicalPrescription";
-import {HttpService} from "./http.service";
+import React, {useEffect, useState} from 'react';
+import {HttpService} from "@/components/services/HttpService";
 import {ChatRequest, Message} from "@/components/ollama.interfaces";
-import {PrescriptionsTable, PrescriptionsTableHandle} from "@/components/PrescriptionsTable";
-import {ActivityIndicator, Button, Modal, StyleSheet, Text, TextInput, View} from "react-native";
+import {Button, StyleSheet, Text, TextInput, View} from "react-native";
 import {Picker} from '@react-native-picker/picker';
-import * as ImagePicker from 'expo-image-picker';
-import {ImagePickerResult} from 'expo-image-picker';
+import {OllamaService} from "@/components/services/OllamaService";
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
-    const [options, setOptions] = useState<string[]>([]);
+    const [llmModels, setLlmModels] = useState<string[]>([]);
     const [selectedModel, setSelectedModel] = useState('');
     const [responses, setResponses] = useState<string[]>([]);
     const [response, setResponse] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
-    const [attachments, setAttachments] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    // Create a ref to access the PrescriptionsTable methods
-    const prescriptionsTableRef = useRef<PrescriptionsTableHandle>(null);
 
     // ask gpt the question
     async function askGpt(): Promise<void> {
@@ -30,133 +23,26 @@ export function Dashboard() {
         setPrompt("");
     }
 
-    const sendChatRequest = async (requestData: ChatRequest) => {
-        try {
-            // Use fetch API for better streaming support
-            const streamedResponse = await HttpService.chatWithLLM(requestData);
-
-            // Get reader from response body stream
-            const reader = streamedResponse.body!.getReader();
-            const decoder = new TextDecoder();
-
-            // the response string
-            let aiResponse: string = "";
-
-            // Read stream chunks
-            while (true) {
-                const {done, value} = await reader.read();
-
-                if (done) {
-                    break;
-                }
-
-                // Decode chunk and process SSE format
-                const chunk = decoder.decode(value, {stream: true});
-
-                // Update response
-                aiResponse += chunk;
-                setResponse(aiResponse);
-            }
-
-            return aiResponse
-        } catch (error) {
-            console.error('Error fetching stream:', error);
-            throw error;
-        }
-    };
-
     async function chat(thePrompt: string, question: string = ""): Promise<void> {
-        messages.push({role: "user", content: thePrompt, images: attachments} as Message);
+        messages.push({role: "user", content: thePrompt} as Message);
         responses.push("User:")
         responses.push(question ? question : thePrompt);
         responses.push(`AI (${selectedModel}):`)
         try {
-            const theResult = await sendChatRequest({
+            const theResult = await OllamaService.chat({
                 messages: messages,
                 model: selectedModel
-            } as ChatRequest);
+            } as ChatRequest, setResponse);
             setResponse("");
             responses.push(theResult)
         } catch (error) {
             responses.push(`Failed to send message:${error}`)
         }
-        setAttachments([])
     }
 
     async function clearHistory(): Promise<void> {
         setResponses([]);
         setMessages([]);
-        setAttachments([]);
-    }
-
-    async function takePrescriptionPhoto(): Promise<void> {
-        // Clear attachments
-        setAttachments([])
-        // Request permission
-        await ImagePicker.requestCameraPermissionsAsync()
-        // Launch camera for taking photo
-        const result: ImagePickerResult = await ImagePicker.launchCameraAsync({
-            base64: true,
-        });
-        // Process image if any photo was taken
-        if (!result.canceled) {
-            await sendSelectPrescriptionPhoto(result)
-        }
-    }
-
-    async function selectPrescriptionPhoto(): Promise<void> {
-        // Clear attachments
-        setAttachments([])
-        // Request permission
-        await ImagePicker.requestMediaLibraryPermissionsAsync()
-        // Prompt user for selecting photo
-        const result: ImagePickerResult = await ImagePicker.launchImageLibraryAsync({
-            base64: true,
-        });
-        // Process image if any photo was selected
-        if (!result.canceled) {
-            await sendSelectPrescriptionPhoto(result)
-        }
-    }
-
-    async function sendSelectPrescriptionPhoto(result: ImagePickerResult): Promise<void> {
-        if (result.assets) {
-            for (let i = 0; i < result.assets.length; i++) {
-                const theBase64 = result.assets[i].base64;
-                if (theBase64) {
-                    attachments.push(theBase64)
-                }
-            }
-        }
-        if (attachments.length > 0) {
-            // Show loading spinner
-            setIsLoading(true);
-
-            let thePrompt = "Extract medical prescription from the image."
-            messages.push({role: "user", content: thePrompt, images: attachments} as Message);
-            responses.push("User:")
-            responses.push(thePrompt);
-            responses.push(`AI (${selectedModel}):`)
-            try {
-                const result: MedicalPrescription = (await HttpService.getImageText({
-                    model: selectedModel,
-                    images: attachments
-                })).data;
-                // Trigger adding a new prescription from the parent component
-                if (prescriptionsTableRef.current) {
-                    // Call the handleAdd function exposed via ref
-                    prescriptionsTableRef.current.handleAdd(result);
-                }
-            } catch (error) {
-                console.error("Error processing image:", error);
-                responses.push("Error processing image");
-            } finally {
-                // Hide loading spinner regardless of success or failure
-                setIsLoading(false);
-            }
-            responses.push("Done")
-            setAttachments([])
-        }
     }
 
     // Fetch the models when the component mounts
@@ -170,7 +56,7 @@ export function Dashboard() {
             } catch (e) {
                 console.error(e)
             }
-            setOptions(models);
+            setLlmModels(models);
             if (models) {
                 setSelectedModel(models[0])
             }
@@ -196,26 +82,6 @@ export function Dashboard() {
         }
     };
 
-    // Add this Modal component to your render function
-    const LoadingModal = () => (
-        <Modal
-            transparent={true}
-            animationType="fade"
-            visible={isLoading}
-            onRequestClose={() => {
-            }} // Required on Android
-        >
-            <View style={styles.modalBackground}>
-                <View style={styles.spinnerContainer}>
-                    <ActivityIndicator
-                        size="large"
-                        color="#0275d8" // Bootstrap primary blue
-                    />
-                    <Text style={styles.loadingText}>Processing prescription...</Text>
-                </View>
-            </View>
-        </Modal>
-    );
 
     return (
         <View>
@@ -225,7 +91,7 @@ export function Dashboard() {
             <View style={styles.inputForm}>
                 <Text className="form-label">Model:</Text>
                 <Picker onValueChange={(itemValue: string, _) => setSelectedModel(itemValue)} style={{flex: 1}}>
-                    {options.map((option, index) => (
+                    {llmModels.map((option, index) => (
                         <Picker.Item label={option} value={option} key={index}/>
                     ))}
                 </Picker>
@@ -234,10 +100,6 @@ export function Dashboard() {
                 <Button onPress={askGpt} disabled={prompt.length === 0} title="Chat"/>
                 <Button onPress={clearHistory} title="Clear"/>
             </View>
-            <Button onPress={takePrescriptionPhoto} title={"Take a photo of your prescription"}/>
-            <Button onPress={selectPrescriptionPhoto} title={"Select a photo of your prescription"}/>
-            <PrescriptionsTable ref={prescriptionsTableRef}/>
-            <LoadingModal/>
         </View>
     );
 }
@@ -252,39 +114,5 @@ const styles = StyleSheet.create({
     inputForm: {
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    button: {
-        backgroundColor: '#0275d8', // Bootstrap primary blue
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 5,
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    modalBackground: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dim the screen with semi-transparent background
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    spinnerContainer: {
-        backgroundColor: 'white',
-        borderRadius: 10,
-        padding: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    loadingText: {
-        marginTop: 10,
-        fontSize: 16,
-        color: '#333',
     },
 });

@@ -47,7 +47,7 @@ public class OllamaController : ControllerBase
         var chatRequest = new ChatRequest
         {
             Messages = messages,
-            Model = req.Model,
+            Model = "llama3.2-vision",
             Format = "json"
         };
         StringBuilder result = new();
