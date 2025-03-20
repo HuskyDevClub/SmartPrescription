@@ -4,6 +4,7 @@ import {ChatRequest, Message} from "@/components/ollama.interfaces";
 import {Button, StyleSheet, Text, TextInput, View} from "react-native";
 import {Picker} from '@react-native-picker/picker';
 import {OllamaService} from "@/components/services/OllamaService";
+import {UserDataService} from "@/components/services/UserDataService";
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
@@ -24,7 +25,21 @@ export function Dashboard() {
     }
 
     async function chat(thePrompt: string, question: string = ""): Promise<void> {
-        messages.push({role: "user", content: thePrompt} as Message);
+        if (messages.length <= 0) {
+            const thePrescriptions: Record<string, string>[] = await UserDataService.try_get("Prescriptions", [])
+            thePrescriptions.forEach(p => {
+                delete p["id"]
+            })
+            const currPrescriptions = JSON.stringify(thePrescriptions)
+            const currTime = new Date().toISOString();
+            messages.push({
+                role: "user",
+                content: `Here are some of the medicine I am taking:${currPrescriptions}, and right now is ${currTime}. Only use these information when you need these information. If you don not need it, just pretend that they do not exist.`
+            });
+            messages.push({role: "assistant", content: "Ok, I got it."})
+        }
+
+        messages.push({role: "user", content: thePrompt});
         responses.push("User:")
         responses.push(question ? question : thePrompt);
         responses.push(`AI (${selectedModel}):`)
@@ -35,6 +50,7 @@ export function Dashboard() {
             } as ChatRequest, setResponse);
             setResponse("");
             responses.push(theResult)
+            messages.push({role: "assistant", content: theResult})
         } catch (error) {
             responses.push(`Failed to send message:${error}`)
         }
