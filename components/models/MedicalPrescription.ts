@@ -1,6 +1,8 @@
 export interface MedicalPrescription {
     name: string;
     usage: string;
-    frequency: string;
+    qty: number;
+    refills: number;
+    discard: string;
     note: string;
 }

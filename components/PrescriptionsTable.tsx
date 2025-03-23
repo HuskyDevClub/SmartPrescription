@@ -1,20 +1,12 @@
 import React, {useEffect, useState} from 'react';
 import {MedicalPrescription} from "@/components/models/MedicalPrescription";
-import {
-    ActivityIndicator,
-    Alert,
-    Button,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
+import {ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {UserDataService} from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
 import {ImagePickerResult} from "expo-image-picker";
 import {HttpService} from "@/components/services/HttpService";
+import DateTimePicker from '@react-native-community/datetimepicker';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Define types
 interface TableItem extends MedicalPrescription {
@@ -27,8 +19,10 @@ export const PrescriptionsTable = () => {
     const [editedValues, setEditedValues] = useState<MedicalPrescription>({
         name: '',
         usage: '',
-        frequency: '',
-        note: '',
+        qty: 0,
+        refills: 0,
+        discard: '',
+        note: ''
     });
     const [myPrescriptions, setMyPrescriptions] = useState<TableItem[]>([]);
     const [attachments, setAttachments] = useState<string[]>([]);
@@ -40,8 +34,10 @@ export const PrescriptionsTable = () => {
         setEditedValues({
             name: item.name,
             usage: item.usage,
-            frequency: item.frequency,
-            note: item.note,
+            qty: item.qty,
+            refills: item.refills,
+            discard: item.discard,
+            note: item.note
         });
         setModalVisible(true);
     };
@@ -51,14 +47,18 @@ export const PrescriptionsTable = () => {
         if (editItem) {
             editItem.name = editedValues.name
             editItem.usage = editedValues.usage
-            editItem.frequency = editedValues.frequency
+            editItem.qty = editedValues.qty
+            editItem.refills = editedValues.refills
+            editItem.discard = editedValues.discard
             editItem.note = editedValues.note
         } else {
             myPrescriptions.push({
                 id: Date.now().toString(),
                 name: editedValues.name,
                 usage: editedValues.usage,
-                frequency: editedValues.frequency,
+                qty: editedValues.qty,
+                refills: editedValues.refills,
+                discard: editedValues.discard,
                 note: editedValues.note,
             })
         }
@@ -102,7 +102,9 @@ export const PrescriptionsTable = () => {
         handleAdd({
             name: '',
             usage: '',
-            frequency: '',
+            qty: 0,
+            refills: 0,
+            discard: '',
             note: '',
         })
     }
@@ -182,9 +184,6 @@ export const PrescriptionsTable = () => {
     const TableHeader: React.FC = () => (
         <View style={styles.headerRow}>
             <Text style={[styles.headerCell, styles.nameColumn]}>Name</Text>
-            <Text style={[styles.headerCell, styles.usageColumn]}>Usage</Text>
-            <Text style={[styles.headerCell, styles.frequencyColumn]}>Frequency</Text>
-            <Text style={[styles.headerCell, styles.noteColumn]}>Note</Text>
             <Text style={[styles.headerCell, styles.actionColumn]}>Action</Text>
         </View>
     );
@@ -193,9 +192,6 @@ export const PrescriptionsTable = () => {
     const renderItem = (item: TableItem, index: number): React.ReactElement => (
         <View style={styles.row} key={index}>
             <Text style={[styles.cell, styles.nameColumn]}>{item.name}</Text>
-            <Text style={[styles.cell, styles.usageColumn]}>{item.usage}</Text>
-            <Text style={[styles.cell, styles.frequencyColumn]}>{item.frequency}</Text>
-            <Text style={[styles.cell, styles.noteColumn]}>{item.note}</Text>
             <View style={[styles.cell, styles.actionColumn, styles.buttonContainer]}>
                 <TouchableOpacity
                     style={styles.editButton}
@@ -212,6 +208,16 @@ export const PrescriptionsTable = () => {
             </View>
         </View>
     );
+
+    // Convert Date to string in 'yyyy-mm-dd' format
+    function dateToString(date: Date): string {
+        const year = date.getFullYear();
+        // getMonth() is zero-based, so add 1 and pad with a leading zero if needed
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    }
 
     // Add this Modal component to your render function
     const LoadingModal = () => (
@@ -236,17 +242,24 @@ export const PrescriptionsTable = () => {
 
     return (
         <View style={styles.container}>
+            <View style={styles.headerContainer}>
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity style={styles.addButton} onPress={takePrescriptionPhoto}>
+                        <Ionicons name="camera" size={20} color="white"/>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.addButton} onPress={selectPrescriptionPhoto}>
+                        <Ionicons name="image" size={20} color="white"/>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.addButton} onPress={promptAdd}>
+                        <Text style={styles.addButtonText}>Add</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
             <LoadingModal/>
-            <Button onPress={takePrescriptionPhoto} title={"Take a photo of your prescription"}/>
-            <Button onPress={selectPrescriptionPhoto} title={"Select a photo of your prescription"}/>
+
             <View style={styles.headerContainer}>
                 <TableHeader/>
-                <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={promptAdd}
-                >
-                    <Text style={styles.addButtonText}>+ Add New</Text>
-                </TouchableOpacity>
             </View>
 
             {myPrescriptions.map((p, i) => renderItem(p, i))}
@@ -276,11 +289,35 @@ export const PrescriptionsTable = () => {
                             onChangeText={(text: string) => setEditedValues({...editedValues, usage: text})}
                         />
 
-                        <Text style={styles.inputLabel}>Frequency:</Text>
+                        <Text style={styles.inputLabel}>QTY:</Text>
                         <TextInput
                             style={styles.input}
-                            value={editedValues.frequency}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, frequency: text})}
+                            keyboardType='numeric'
+                            value={editedValues.qty.toString()}
+                            onChangeText={(text: string) => setEditedValues({
+                                ...editedValues,
+                                qty: text ? parseInt(text) : 0
+                            })}
+                        />
+
+                        <Text style={styles.inputLabel}>Refills Remaining:</Text>
+                        <TextInput
+                            style={styles.input}
+                            keyboardType='numeric'
+                            value={editedValues.refills.toString()}
+                            onChangeText={(text: string) => setEditedValues({
+                                ...editedValues,
+                                refills: text ? parseInt(text) : 0
+                            })}
+                        />
+
+                        <Text style={styles.inputLabel}>Date To Discard:</Text>
+                        <DateTimePicker
+                            value={editedValues.discard ? new Date(editedValues.discard) : new Date()}
+                            onChange={(_, theDate: Date | undefined) => setEditedValues({
+                                ...editedValues,
+                                discard: theDate ? dateToString(theDate) : editedValues.discard
+                            })}
                         />
 
                         <Text style={styles.inputLabel}>Note:</Text>
@@ -346,12 +383,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     nameColumn: {
-        flex: 2,
-    },
-    usageColumn: {
-        flex: 2,
-    },
-    frequencyColumn: {
         flex: 2,
     },
     noteColumn: {
@@ -439,12 +470,18 @@ const styles = StyleSheet.create({
         backgroundColor: '#17a2b8',
         padding: 10,
         borderRadius: 5,
-        alignSelf: 'flex-end',
-        marginTop: 10,
+        flex: 1,
+        marginHorizontal: 5,
+        alignItems: 'center',
     },
     addButtonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
     },
     modalBackground: {
         flex: 1,

@@ -22,7 +22,7 @@ public class OllamaController : ControllerBase
             new()
             {
                 Content =
-                    "If the given image is not a photo of prescription medication label, return {} in JSON format; otherwise extract following information in JSON format:\n{\"Name\": the name of the drug, \"Usage\": how to use drug, \"Frequency\": how many times per day (string), \"Note\": anything that need special attention}\nReturn your answer as a valid JSON object. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.",
+                    "If the given image is not a photo of prescription medication label, return {} in JSON format; otherwise extract following information in JSON format: Name: medication name, Usage: Instruction for use, Qty: Medication quantity (integer), Refills: Refills remaining (integer), Discard: Date to discard (YYYY-MM-DD), Note: anything else that need special attention} Return your answer as a valid JSON object. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.",
                 Images = req.Images,
                 Role = "user"
             }
