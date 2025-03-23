@@ -18,6 +18,9 @@ export interface Message {
 export class OllamaService {
     public static async chat(requestData: ChatRequest, setResponse: (arg0: string) => void): Promise<string> {
         try {
+            // Set placeholder for model
+            requestData.model = ""
+
             // Use fetch API for better streaming support
             const streamedResponse = await HttpService.chatWithLLM(requestData);
 

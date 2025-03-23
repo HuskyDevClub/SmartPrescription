@@ -7,8 +7,9 @@ import {ImagePickerResult} from "expo-image-picker";
 import {HttpService} from "@/components/services/HttpService";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Notifications from 'expo-notifications';
+import {SchedulableTriggerInputTypes} from 'expo-notifications';
 
-// Define types
 interface TableItem extends MedicalPrescription {
     id: string;
 }
@@ -22,11 +23,13 @@ export const PrescriptionsTable = () => {
         qty: 0,
         refills: 0,
         discard: '',
-        note: ''
+        note: '',
+        reminderTimes: []
     });
     const [myPrescriptions, setMyPrescriptions] = useState<TableItem[]>([]);
     const [attachments, setAttachments] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
 
     // Handler for edit button
     const handleEdit = (item: TableItem): void => {
@@ -37,7 +40,8 @@ export const PrescriptionsTable = () => {
             qty: item.qty,
             refills: item.refills,
             discard: item.discard,
-            note: item.note
+            note: item.note,
+            reminderTimes: item.reminderTimes
         });
         setModalVisible(true);
     };
@@ -45,14 +49,23 @@ export const PrescriptionsTable = () => {
     // Handler for saving changes
     const handleSave = async (): Promise<void> => {
         if (editItem) {
-            editItem.name = editedValues.name
-            editItem.usage = editedValues.usage
-            editItem.qty = editedValues.qty
-            editItem.refills = editedValues.refills
-            editItem.discard = editedValues.discard
-            editItem.note = editedValues.note
+            editItem.name = editedValues.name;
+            editItem.usage = editedValues.usage;
+            editItem.qty = editedValues.qty;
+            editItem.refills = editedValues.refills;
+            editItem.discard = editedValues.discard;
+            editItem.note = editedValues.note;
+            editItem.reminderTimes = editedValues.reminderTimes;
+
+            // Cancel existing notifications
+            await Notifications.cancelScheduledNotificationAsync(editItem.id);
+
+            // Schedule new notifications for all reminder times
+            if (editedValues.reminderTimes && editedValues.reminderTimes.length > 0) {
+                await scheduleNotifications(editItem);
+            }
         } else {
-            myPrescriptions.push({
+            const newItem = {
                 id: Date.now().toString(),
                 name: editedValues.name,
                 usage: editedValues.usage,
@@ -60,7 +73,15 @@ export const PrescriptionsTable = () => {
                 refills: editedValues.refills,
                 discard: editedValues.discard,
                 note: editedValues.note,
-            })
+                reminderTimes: editedValues.reminderTimes
+            };
+
+            myPrescriptions.push(newItem);
+
+            // Schedule notifications for new item
+            if (editedValues.reminderTimes && editedValues.reminderTimes.length > 0) {
+                await scheduleNotifications(newItem);
+            }
         }
         await UserDataService.save();
         setModalVisible(false);
@@ -71,8 +92,11 @@ export const PrescriptionsTable = () => {
         // Remove prescription at given index
         const removePrescriptionAt = async (index: number): Promise<void> => {
             if (index >= 0) {
+                // Cancel all notifications for deleted item
+                await cancelAllNotifications(id);
+
                 myPrescriptions.splice(index, 1);
-                await UserDataService.save()
+                await UserDataService.save();
                 setEditItem({} as TableItem);
             }
         }
@@ -93,6 +117,9 @@ export const PrescriptionsTable = () => {
     // Handler for add button
     const handleAdd = (value: MedicalPrescription): void => {
         setEditItem(null);
+        if (value.reminderTimes == undefined) {
+            value.reminderTimes = []
+        }
         setEditedValues(value);
         setModalVisible(true);
     };
@@ -107,6 +134,49 @@ export const PrescriptionsTable = () => {
             discard: '',
             note: '',
         })
+    }
+
+    // Cancel all notifications for a medication
+    const cancelAllNotifications = async (id: string): Promise<void> => {
+        // Cancel the main notification
+        await Notifications.cancelScheduledNotificationAsync(id);
+
+        // Cancel any time-specific notifications
+        for (let i = 0; i < 10; i++) { // Assuming max 10 time slots per medication
+            await Notifications.cancelScheduledNotificationAsync(`${id}_time_${i}`);
+        }
+    };
+
+    // Schedule notifications for all reminder times of a medication
+    const scheduleNotifications = async (item: TableItem): Promise<void> => {
+        if (!item.reminderTimes || item.reminderTimes.length === 0) return;
+
+        // Cancel any existing notifications for this item
+        await cancelAllNotifications(item.id);
+
+        // Schedule a notification for each reminder time
+        for (let i = 0; i < item.reminderTimes.length; i++) {
+            const reminderTime = item.reminderTimes[i];
+            // Parse the reminder time
+            const [hours, minutes] = reminderTime.split(':').map(Number);
+
+            // Schedule the notification
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: 'Medication Reminder',
+                    body: `Time to take your ${item.name}. ${item.usage}`,
+                    sound: true,
+                    priority: Notifications.AndroidNotificationPriority.HIGH,
+                    data: {id: item.id},
+                },
+                trigger: {
+                    type: SchedulableTriggerInputTypes.DAILY,
+                    hour: hours,
+                    minute: minutes
+                },
+                identifier: `${item.id}_time_${i}`
+            });
+        }
     }
 
     async function takePrescriptionPhoto(): Promise<void> {
@@ -152,9 +222,7 @@ export const PrescriptionsTable = () => {
             // Show loading spinner
             setIsLoading(true);
             try {
-                const result: MedicalPrescription = (await HttpService.getImageText({
-                    images: attachments
-                })).data;
+                const result: MedicalPrescription = (await HttpService.getImageText(attachments)).data;
                 // Trigger adding a new prescription from the parent component
                 if (result.name) {
                     handleAdd(result);
@@ -175,15 +243,83 @@ export const PrescriptionsTable = () => {
     useEffect(() => {
         async function fetchMyPrescriptions(): Promise<void> {
             setMyPrescriptions(await UserDataService.try_get("Prescriptions", []))
+
+            // Schedule notifications for all prescriptions with reminder times
+            for (const prescription of myPrescriptions) {
+                if (prescription.reminderTimes && prescription.reminderTimes.length > 0) {
+                    await scheduleNotifications(prescription);
+                }
+            }
         }
 
-        fetchMyPrescriptions().then(); // Call the async function
+        async function requestNotificationPermissions() {
+            const {status} = await Notifications.requestPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Please allow notifications to receive medication reminders');
+            }
+        }
+
+        requestNotificationPermissions().then();
+        fetchMyPrescriptions().then();
     }, []);
 
-// Header component
+    // States for time picker
+    const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);
+
+    // Handle time picker change
+    const onTimeChange = (_: any, selectedTime?: Date) => {
+        setShowTimePicker(false);
+        if (selectedTime && editedValues.reminderTimes) {
+            const hours = selectedTime.getHours().toString().padStart(2, '0');
+            const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
+            const timeString = `${hours}:${minutes}`;
+
+            if (editingTimeIndex >= 0 && editingTimeIndex < editedValues.reminderTimes.length) {
+                // Update existing time slot
+                editedValues.reminderTimes[editingTimeIndex] = timeString;
+            } else {
+                editedValues.reminderTimes.push(timeString);
+            }
+        }
+    };
+
+    // Add a new time slot
+    const addTimeSlot = (): void => {
+        setEditingTimeIndex(-1); // Indicate we're adding a new slot
+        setShowTimePicker(true);
+    };
+
+    // Edit an existing time slot
+    const editTimeSlot = (index: number): void => {
+        setEditingTimeIndex(index);
+        setShowTimePicker(true);
+    };
+
+    // Remove a time slot
+    const removeTimeSlot = (index: number): void => {
+        if (editedValues.reminderTimes && editedValues.reminderTimes.length > index) {
+            const updatedTimes = [...editedValues.reminderTimes];
+            updatedTimes.splice(index, 1);
+            setEditedValues({...editedValues, reminderTimes: updatedTimes});
+        }
+    };
+
+    // Convert time string to display format (12-hour with AM/PM)
+    const formatTimeForDisplay = (timeString?: string): string => {
+        if (!timeString) return 'No reminder';
+
+        const [hours, minutes] = timeString.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    };
+
+    // Header component
     const TableHeader: React.FC = () => (
         <View style={styles.headerRow}>
             <Text style={[styles.headerCell, styles.nameColumn]}>Name</Text>
+            <Text style={[styles.headerCell, styles.reminderColumn]}>Reminder</Text>
             <Text style={[styles.headerCell, styles.actionColumn]}>Action</Text>
         </View>
     );
@@ -192,6 +328,16 @@ export const PrescriptionsTable = () => {
     const renderItem = (item: TableItem, index: number): React.ReactElement => (
         <View style={styles.row} key={index}>
             <Text style={[styles.cell, styles.nameColumn]}>{item.name}</Text>
+            <TouchableOpacity
+                style={[styles.cell, styles.reminderColumn]}
+                onPress={() => handleEdit(item)}
+            >
+                {item.reminderTimes && item.reminderTimes.length > 1 && (
+                    <Text style={styles.reminderSubtext}>
+                        {item.reminderTimes.map(time => formatTimeForDisplay(time)).join(', ')}
+                    </Text>
+                )}
+            </TouchableOpacity>
             <View style={[styles.cell, styles.actionColumn, styles.buttonContainer]}>
                 <TouchableOpacity
                     style={styles.editButton}
@@ -320,6 +466,60 @@ export const PrescriptionsTable = () => {
                             })}
                         />
 
+                        <Text style={styles.inputLabel}>Reminder Times:</Text>
+
+                        {/* List of existing time slots */}
+                        {editedValues.reminderTimes && editedValues.reminderTimes.map((time, idx) => (
+                            <View key={idx} style={styles.timeSlotContainer}>
+                                <Text style={styles.timeSlotText}>
+                                    {formatTimeForDisplay(time)}
+                                </Text>
+                                <View style={styles.timeSlotButtons}>
+                                    <TouchableOpacity
+                                        style={styles.timeSlotEditButton}
+                                        onPress={() => editTimeSlot(idx)}
+                                    >
+                                        <Ionicons name="pencil" size={18} color="#007BFF"/>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.timeSlotDeleteButton}
+                                        onPress={() => removeTimeSlot(idx)}
+                                    >
+                                        <Ionicons name="trash" size={18} color="#dc3545"/>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+
+                        {/* Add new time slot button */}
+                        <TouchableOpacity
+                            style={styles.addTimeButton}
+                            onPress={addTimeSlot}
+                        >
+                            <Ionicons name="add-circle" size={20} color="#28a745"/>
+                            <Text style={styles.addTimeButtonText}>Add Time Slot</Text>
+                        </TouchableOpacity>
+
+                        {/* Time picker (shown when adding/editing a time) */}
+                        {showTimePicker && (
+                            <DateTimePicker
+                                value={(() => {
+                                    const date = new Date();
+                                    if (editingTimeIndex >= 0 &&
+                                        editedValues.reminderTimes &&
+                                        editedValues.reminderTimes[editingTimeIndex]) {
+                                        const [hours, minutes] = editedValues.reminderTimes[editingTimeIndex].split(':').map(Number);
+                                        date.setHours(hours, minutes, 0, 0);
+                                    }
+                                    return date;
+                                })()}
+                                mode="time"
+                                is24Hour={false}
+                                display="default"
+                                onChange={onTimeChange}
+                            />
+                        )}
+
                         <Text style={styles.inputLabel}>Note:</Text>
                         <TextInput
                             style={styles.input}
@@ -335,8 +535,9 @@ export const PrescriptionsTable = () => {
                                 <Text style={styles.buttonText}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.button, styles.buttonSave]}
+                                style={[styles.button, {backgroundColor: !editedValues.name ? 'gray' : '#28a745'}]}
                                 onPress={handleSave}
+                                disabled={!editedValues.name}
                             >
                                 <Text style={styles.buttonText}>Save</Text>
                             </TouchableOpacity>
@@ -384,6 +585,9 @@ const styles = StyleSheet.create({
     },
     nameColumn: {
         flex: 2,
+    },
+    reminderColumn: {
+        flex: 1.5,
     },
     noteColumn: {
         flex: 3,
@@ -460,9 +664,6 @@ const styles = StyleSheet.create({
         elevation: 2,
         minWidth: 100,
     },
-    buttonSave: {
-        backgroundColor: '#28a745',
-    },
     buttonCancel: {
         backgroundColor: '#dc3545',
     },
@@ -500,5 +701,53 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontSize: 16,
         color: '#333',
+    },
+    timeSlotContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 10,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 5,
+        marginBottom: 8,
+    },
+    timeSlotText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    timeSlotButtons: {
+        flexDirection: 'row',
+    },
+    timeSlotEditButton: {
+        padding: 5,
+        marginRight: 5,
+    },
+    timeSlotDeleteButton: {
+        padding: 5,
+    },
+    addTimeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 10,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: '#28a745',
+        borderRadius: 5,
+        marginBottom: 15,
+    },
+    addTimeButtonText: {
+        fontSize: 16,
+        color: '#28a745',
+        marginLeft: 8,
+    },
+    reminderText: {
+        fontSize: 14,
+    },
+    reminderSubtext: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 3,
     },
 });

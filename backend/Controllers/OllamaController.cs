@@ -15,7 +15,7 @@ public class OllamaController : ControllerBase
     private static readonly OllamaApiClient OLLAMA = new(new Uri("http://localhost:11434"));
 
     [HttpPost("extract")]
-    public async Task<ActionResult<Prescription>> Extract(ImageExtractRequest req)
+    public async Task<ActionResult<Prescription>> Extract(string[] images)
     {
         Message[] messages =
         [
@@ -23,7 +23,7 @@ public class OllamaController : ControllerBase
             {
                 Content =
                     "If the given image is not a photo of prescription medication label, return {} in JSON format; otherwise extract following information in JSON format: Name: medication name, Usage: Instruction for use, Qty: Medication quantity (integer), Refills: Refills remaining (integer), Discard: Date to discard (YYYY-MM-DD), Note: anything else that need special attention} Return your answer as a valid JSON object. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.",
-                Images = req.Images,
+                Images = images,
                 Role = "user"
             }
         ];

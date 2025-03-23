@@ -5,4 +5,5 @@ export interface MedicalPrescription {
     refills: number;
     discard: string;
     note: string;
+    reminderTimes?: string[]; // Store time in 24-hour format (HH:MM)
 }

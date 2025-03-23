@@ -7,6 +7,7 @@ export class HttpService {
 
     // get text
     public static getImageText(data: object): Promise<any> {
+    public static getImageText(data: string[]): Promise<any> {
         return axios.post(`${URL}/ollama/extract`, data)
     }
 
