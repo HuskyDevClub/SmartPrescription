@@ -3,7 +3,6 @@ using System.Text.Json;
 using backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using OllamaSharp;
-using OllamaSharp.Models;
 using OllamaSharp.Models.Chat;
 
 namespace backend.Controllers;
@@ -12,50 +11,35 @@ namespace backend.Controllers;
 [Route("api/[controller]")]
 public class OllamaController : ControllerBase
 {
+    private const string MODEL = "gemma3:12b";
     private static readonly OllamaApiClient OLLAMA = new(new Uri("http://localhost:11434"));
-
-    [HttpGet("tags")]
-    public async Task<ActionResult<Model>> Tags()
-    {
-        try
-        {
-            // Fetch available local models
-            var models = await OLLAMA.ListLocalModelsAsync();
-
-            if (!models.Any()) return NotFound("No models found.");
-
-            return Ok(models);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, $"Error fetching models: {ex.Message}");
-        }
-    }
 
     [HttpPost("extract")]
     public async Task<ActionResult<Prescription>> Extract(ImageExtractRequest req)
     {
-        var message = new Message
-        {
-            Content =
-                "Assume given image is the photo of one prescription medication label, extract following information in JSON format:\n{\"Name\": the name of the drug, \"Usage\": how to use drug, \"Frequency\": how many times per day (string), \"Note\": anything that need special attention}\nReturn your answer as a valid JSON object. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.",
-            Images = req.Images,
-            Role = "user"
-        };
-        Message[] messages = [message];
+        Message[] messages =
+        [
+            new()
+            {
+                Content =
+                    "If the given image is not a photo of prescription medication label, return {} in JSON format; otherwise extract following information in JSON format:\n{\"Name\": the name of the drug, \"Usage\": how to use drug, \"Frequency\": how many times per day (string), \"Note\": anything that need special attention}\nReturn your answer as a valid JSON object. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.",
+                Images = req.Images,
+                Role = "user"
+            }
+        ];
 
-        var chatRequest = new ChatRequest
+        ChatRequest chatRequest = new()
         {
             Messages = messages,
-            Model = "llama3.2-vision",
+            Model = MODEL,
             Format = "json"
         };
         StringBuilder result = new();
-        await foreach (var stream in OLLAMA.ChatAsync(chatRequest))
+        await foreach (ChatResponseStream? stream in OLLAMA.ChatAsync(chatRequest))
             if (stream != null)
                 result.Append(stream.Message.Content);
 
-        var thePrescription = JsonSerializer.Deserialize<Prescription>(result.ToString())!;
+        Prescription thePrescription = JsonSerializer.Deserialize<Prescription>(result.ToString())!;
 
         return thePrescription;
     }
@@ -69,15 +53,18 @@ public class OllamaController : ControllerBase
         Response.Headers.Append("Connection", "keep-alive");
 
         // Create a cancellation token linked to the client connection
-        var cancellationToken = HttpContext.RequestAborted;
+        CancellationToken cancellationToken = HttpContext.RequestAborted;
 
         try
         {
+            // set model to currently selected model
+            req.Model = MODEL;
+
             // Use StreamWriter to send data to the client
-            await using var writer = new StreamWriter(Response.Body, Encoding.UTF8);
+            await using StreamWriter writer = new(Response.Body, Encoding.UTF8);
 
             // Stream each chunk from Ollama
-            await foreach (var stream in OLLAMA.ChatAsync(req).WithCancellation(cancellationToken))
+            await foreach (ChatResponseStream? stream in OLLAMA.ChatAsync(req).WithCancellation(cancellationToken))
             {
                 if (stream == null || string.IsNullOrEmpty(stream.Message.Content)) continue;
 
@@ -101,7 +88,7 @@ public class OllamaController : ControllerBase
             // If we're already streaming, try to send an error
             try
             {
-                await using var writer = new StreamWriter(Response.Body, Encoding.UTF8);
+                await using StreamWriter writer = new(Response.Body, Encoding.UTF8);
                 await writer.WriteAsync($",{{\"error\":\"{ex.Message}\"}}]");
                 await writer.FlushAsync(cancellationToken);
             }

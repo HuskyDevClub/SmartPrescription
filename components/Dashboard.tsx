@@ -1,15 +1,10 @@
-import React, {useEffect, useState} from 'react';
-import {HttpService} from "@/components/services/HttpService";
-import {ChatRequest, Message} from "@/components/ollama.interfaces";
+import React, {useState} from 'react';
 import {Button, StyleSheet, Text, TextInput, View} from "react-native";
-import {Picker} from '@react-native-picker/picker';
-import {OllamaService} from "@/components/services/OllamaService";
+import {ChatRequest, Message, OllamaService} from "@/components/services/OllamaService";
 import {UserDataService} from "@/components/services/UserDataService";
 
 export function Dashboard() {
     const [prompt, setPrompt] = useState('');
-    const [llmModels, setLlmModels] = useState<string[]>([]);
-    const [selectedModel, setSelectedModel] = useState('');
     const [responses, setResponses] = useState<string[]>([]);
     const [response, setResponse] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
@@ -42,11 +37,10 @@ export function Dashboard() {
         messages.push({role: "user", content: thePrompt});
         responses.push("User:")
         responses.push(question ? question : thePrompt);
-        responses.push(`AI (${selectedModel}):`)
+        responses.push(`AI:`)
         try {
             const theResult = await OllamaService.chat({
-                messages: messages,
-                model: selectedModel
+                messages: messages
             } as ChatRequest, setResponse);
             setResponse("");
             responses.push(theResult)
@@ -60,26 +54,6 @@ export function Dashboard() {
         setResponses([]);
         setMessages([]);
     }
-
-    // Fetch the models when the component mounts
-    useEffect(() => {
-        async function fetchModels(): Promise<void> {
-            const models: string[] = [];
-            try {
-                for (const model of (await HttpService.getModels()).data) {
-                    models.push(model.name);
-                }
-            } catch (e) {
-                console.error(e)
-            }
-            setLlmModels(models);
-            if (models) {
-                setSelectedModel(models[0])
-            }
-        }
-
-        fetchModels().then(); // Call the async function
-    }, []); // Empty dependency array ensures it only runs once
 
     // Render item for list
     const RenderResponse: React.FC = () => {
@@ -104,14 +78,6 @@ export function Dashboard() {
             <RenderResponse/>
             <TextInput placeholder="Message GPT Assistance" value={prompt}
                        onChangeText={(text: string) => setPrompt(text)} style={styles.input}/>
-            <View style={styles.inputForm}>
-                <Text className="form-label">Model:</Text>
-                <Picker onValueChange={(itemValue: string, _) => setSelectedModel(itemValue)} style={{flex: 1}}>
-                    {llmModels.map((option, index) => (
-                        <Picker.Item label={option} value={option} key={index}/>
-                    ))}
-                </Picker>
-            </View>
             <View style={styles.inputForm}>
                 <Button onPress={askGpt} disabled={prompt.length === 0} title="Chat"/>
                 <Button onPress={clearHistory} title="Clear"/>

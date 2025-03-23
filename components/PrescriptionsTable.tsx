@@ -154,9 +154,13 @@ export const PrescriptionsTable = () => {
                     images: attachments
                 })).data;
                 // Trigger adding a new prescription from the parent component
-                handleAdd(result);
-            } catch (error) {
-                console.error(error);
+                if (result.name) {
+                    handleAdd(result);
+                } else {
+                    Alert.alert('Invalid Image', 'Please try again!');
+                }
+            } catch (error: any) {
+                Alert.alert('Error', error.message);
             } finally {
                 // Hide loading spinner regardless of success or failure
                 setIsLoading(false);

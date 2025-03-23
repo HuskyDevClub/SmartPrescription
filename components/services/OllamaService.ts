@@ -1,5 +1,19 @@
-import {ChatRequest} from "@/components/ollama.interfaces";
 import {HttpService} from "@/components/services/HttpService";
+
+export interface ChatRequest {
+    model: string
+    messages?: Message[]
+    stream?: boolean
+    format?: string | object
+    keep_alive?: string | number // a number (seconds) or a string with a duration unit suffix ("300ms", "1.5h", "2h45m", etc)
+}
+
+export interface Message {
+    role: string
+    content: string
+    images?: Uint8Array[] | string[]
+}
+
 
 export class OllamaService {
     public static async chat(requestData: ChatRequest, setResponse: (arg0: string) => void): Promise<string> {
