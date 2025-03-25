@@ -23,6 +23,8 @@ export const PrescriptionsTable = () => {
         qty: 0,
         refills: 0,
         discard: '',
+        taken: 0,
+        skipped: 0,
         note: '',
         reminderTimes: []
     });
@@ -41,6 +43,8 @@ export const PrescriptionsTable = () => {
             refills: item.refills,
             discard: item.discard,
             note: item.note,
+            taken: item.taken,
+            skipped: item.skipped,
             reminderTimes: item.reminderTimes
         });
         setModalVisible(true);
@@ -61,27 +65,17 @@ export const PrescriptionsTable = () => {
             await Notifications.cancelScheduledNotificationAsync(editItem.id);
 
             // Schedule new notifications for all reminder times
-            if (editedValues.reminderTimes && editedValues.reminderTimes.length > 0) {
-                await scheduleNotifications(editItem);
-            }
+            await scheduleNotifications(editItem);
         } else {
-            const newItem = {
+            const newItem: TableItem = {
+                ...editedValues,
                 id: Date.now().toString(),
-                name: editedValues.name,
-                usage: editedValues.usage,
-                qty: editedValues.qty,
-                refills: editedValues.refills,
-                discard: editedValues.discard,
-                note: editedValues.note,
-                reminderTimes: editedValues.reminderTimes
             };
 
             myPrescriptions.push(newItem);
 
             // Schedule notifications for new item
-            if (editedValues.reminderTimes && editedValues.reminderTimes.length > 0) {
-                await scheduleNotifications(newItem);
-            }
+            await scheduleNotifications(newItem);
         }
         await UserDataService.save();
         setModalVisible(false);
@@ -132,18 +126,18 @@ export const PrescriptionsTable = () => {
             qty: 0,
             refills: 0,
             discard: '',
+            taken: 0,
+            skipped: 0,
             note: '',
         })
     }
 
     // Cancel all notifications for a medication
     const cancelAllNotifications = async (id: string): Promise<void> => {
-        // Cancel the main notification
-        await Notifications.cancelScheduledNotificationAsync(id);
-
-        // Cancel any time-specific notifications
-        for (let i = 0; i < 10; i++) { // Assuming max 10 time slots per medication
-            await Notifications.cancelScheduledNotificationAsync(`${id}_time_${i}`);
+        for (const n of (await Notifications.getAllScheduledNotificationsAsync())) {
+            if (n.identifier.startsWith(id)) {
+                await Notifications.cancelScheduledNotificationAsync(n.identifier)
+            }
         }
     };
 
@@ -244,11 +238,10 @@ export const PrescriptionsTable = () => {
         async function fetchMyPrescriptions(): Promise<void> {
             setMyPrescriptions(await UserDataService.try_get("Prescriptions", []))
 
-            // Schedule notifications for all prescriptions with reminder times
-            for (const prescription of myPrescriptions) {
-                if (prescription.reminderTimes && prescription.reminderTimes.length > 0) {
-                    await scheduleNotifications(prescription);
-                }
+            // Re-schedule notifications for all prescriptions with reminder times
+            await Notifications.cancelAllScheduledNotificationsAsync();
+            for (const p of myPrescriptions) {
+                await scheduleNotifications(p);
             }
         }
 
@@ -454,6 +447,28 @@ export const PrescriptionsTable = () => {
                             onChangeText={(text: string) => setEditedValues({
                                 ...editedValues,
                                 refills: text ? parseInt(text) : 0
+                            })}
+                        />
+
+                        <Text style={styles.inputLabel}>Taken:</Text>
+                        <TextInput
+                            style={styles.input}
+                            keyboardType='numeric'
+                            value={editedValues.taken.toString()}
+                            onChangeText={(text: string) => setEditedValues({
+                                ...editedValues,
+                                taken: text ? parseInt(text) : 0
+                            })}
+                        />
+
+                        <Text style={styles.inputLabel}>Skip:</Text>
+                        <TextInput
+                            style={styles.input}
+                            keyboardType='numeric'
+                            value={editedValues.skipped.toString()}
+                            onChangeText={(text: string) => setEditedValues({
+                                ...editedValues,
+                                skipped: text ? parseInt(text) : 0
                             })}
                         />
 
