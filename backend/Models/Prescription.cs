@@ -16,7 +16,7 @@ public class Prescription
 
     [Required] public string Note { get; set; } = string.Empty;
 
-    [Required] public int Taken { get; set; } = 0;
-    
-    [Required] public int Skipped { get; set; } = 0;
+    [Required] public int Taken { get; set; }
+
+    [Required] public int Skipped { get; set; }
 }

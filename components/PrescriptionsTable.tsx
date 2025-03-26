@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {MedicalPrescription} from "@/components/models/MedicalPrescription";
 import {ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {UserDataService} from "@/components/services/UserDataService";
@@ -32,6 +32,14 @@ export const PrescriptionsTable = () => {
     const [attachments, setAttachments] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
+
+    // Reference to keep track of the most up-to-date prescriptions state
+    const prescriptionsRef = useRef<TableItem[]>([]);
+
+    // Update ref when state changes
+    useEffect(() => {
+        prescriptionsRef.current = myPrescriptions;
+    }, [myPrescriptions]);
 
     // Handler for edit button
     const handleEdit = (item: TableItem): void => {
@@ -132,6 +140,46 @@ export const PrescriptionsTable = () => {
         })
     }
 
+    // Handle medication taken action
+    const handleMedicationTaken = async (id: string, notificationId: string): Promise<void> => {
+        const prescriptions = prescriptionsRef.current;
+        const index = prescriptions.findIndex(item => item.id === id);
+
+        if (index >= 0) {
+            // Increment taken count
+            prescriptions[index].taken += 1;
+
+            // Update state
+            setMyPrescriptions([...prescriptions]);
+
+            // Save to persistent storage
+            await UserDataService.save();
+
+            // Dismiss the notification
+            await Notifications.dismissNotificationAsync(notificationId);
+        }
+    };
+
+    // Handle medication skipped action
+    const handleMedicationSkipped = async (id: string, notificationId: string): Promise<void> => {
+        const prescriptions = prescriptionsRef.current;
+        const index = prescriptions.findIndex(item => item.id === id);
+
+        if (index >= 0) {
+            // Increment skipped count
+            prescriptions[index].skipped += 1;
+
+            // Update state
+            setMyPrescriptions([...prescriptions]);
+
+            // Save to persistent storage
+            await UserDataService.save();
+
+            // Dismiss the notification
+            await Notifications.dismissNotificationAsync(notificationId);
+        }
+    };
+
     // Cancel all notifications for a medication
     const cancelAllNotifications = async (id: string): Promise<void> => {
         for (const n of (await Notifications.getAllScheduledNotificationsAsync())) {
@@ -158,10 +206,11 @@ export const PrescriptionsTable = () => {
             await Notifications.scheduleNotificationAsync({
                 content: {
                     title: 'Medication Reminder',
-                    body: `Time to take your ${item.name}. ${item.usage}`,
+                    body: `Time to take your ${item.name}.`,
                     sound: true,
                     priority: Notifications.AndroidNotificationPriority.HIGH,
                     data: {id: item.id},
+                    categoryIdentifier: 'medication-reminder',
                 },
                 trigger: {
                     type: SchedulableTriggerInputTypes.DAILY,
@@ -233,27 +282,83 @@ export const PrescriptionsTable = () => {
         }
     }
 
+    async function logDebugInfo(): Promise<void> {
+        console.info('-----Log Debug-----')
+        console.log("Current all Notification:")
+        console.log(await Notifications.getAllScheduledNotificationsAsync())
+    }
+
     // Fetch my prescriptions when the component mounts
     useEffect(() => {
         async function fetchMyPrescriptions(): Promise<void> {
-            setMyPrescriptions(await UserDataService.try_get("Prescriptions", []))
+            const thePrescriptions: TableItem[] = await UserDataService.try_get("Prescriptions", []);
+            setMyPrescriptions(thePrescriptions);
+            prescriptionsRef.current = thePrescriptions;
 
             // Re-schedule notifications for all prescriptions with reminder times
             await Notifications.cancelAllScheduledNotificationsAsync();
-            for (const p of myPrescriptions) {
+            for (const p of thePrescriptions) {
                 await scheduleNotifications(p);
             }
+
+            // await logDebugInfo();
         }
 
-        async function requestNotificationPermissions() {
+        async function setupNotificationHandlers() {
+            // Request notification permissions
             const {status} = await Notifications.requestPermissionsAsync();
             if (status !== 'granted') {
                 Alert.alert('Permission Required', 'Please allow notifications to receive medication reminders');
+                return;
             }
+
+            // Set notification categories with action buttons
+            await Notifications.setNotificationCategoryAsync('medication-reminder', [
+                {
+                    identifier: 'TAKEN_ACTION',
+                    buttonTitle: 'Taken',
+                    options: {
+                        isDestructive: false,
+                        isAuthenticationRequired: false,
+                    }
+                },
+                {
+                    identifier: 'SKIP_ACTION',
+                    buttonTitle: 'Skip',
+                    options: {
+                        isDestructive: false,
+                        isAuthenticationRequired: false,
+                    }
+                }
+            ]);
+
+            // Set notification handler
+            Notifications.setNotificationHandler({
+                handleNotification: async () => ({
+                    shouldShowAlert: true,
+                    shouldPlaySound: true,
+                    shouldSetBadge: true,
+                }),
+            });
+
+            // Set up notification response handler for action buttons
+            const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+                const {actionIdentifier, notification} = response;
+                const {id, notificationId} = notification.request.content.data;
+
+                if (actionIdentifier === 'TAKEN_ACTION') {
+                    handleMedicationTaken(id, notificationId);
+                } else if (actionIdentifier === 'SKIP_ACTION') {
+                    handleMedicationSkipped(id, notificationId);
+                }
+            });
+
+            // Cleanup subscription on unmount
+            return () => subscription.remove();
         }
 
-        requestNotificationPermissions().then();
         fetchMyPrescriptions().then();
+        setupNotificationHandlers().then();
     }, []);
 
     // States for time picker
