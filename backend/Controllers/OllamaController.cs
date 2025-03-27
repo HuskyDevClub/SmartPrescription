@@ -12,17 +12,27 @@ namespace backend.Controllers;
 public class OllamaController : ControllerBase
 {
     private const string MODEL = "gemma3:12b";
+
+    private const string EXTRACTION_PROMPT =
+        "If the given image is a photo of discharge medication orders that likely contains mutiple drugs, extract following information for every drug in the image:\n" +
+        "- Name (string): The name of the drug\n" +
+        "- DoseQty (int): The quanity of the does\n" +
+        "- DoseUnit (string): The dose unit\n" +
+        "- Route (string): The route\n" +
+        "- Frequency (string): The frequency, usually in the form of three numbers (0 or 1) split by dashes\n" +
+        "- Days (int): Thr number of days\n" +
+        "Return your answer as a valid JSON object, with the int index as the key, the data as the value. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.";
+
     private static readonly OllamaApiClient OLLAMA = new(new Uri("http://localhost:11434"));
 
     [HttpPost("extract")]
-    public async Task<ActionResult<Prescription>> Extract(string[] images)
+    public async Task<ActionResult<Prescription[]>> Extract(string[] images)
     {
         Message[] messages =
         [
             new()
             {
-                Content =
-                    "If the given image is not a photo of prescription medication label, return {} in JSON format; otherwise extract following information in JSON format: Name: medication name, Usage: Instruction for use, Qty: Medication quantity (integer), Refills: Refills remaining (integer), Discard: Date to discard (YYYY-MM-DD), Note: anything else that need special attention} Return your answer as a valid JSON object. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.",
+                Content = EXTRACTION_PROMPT,
                 Images = images,
                 Role = "user"
             }
@@ -39,7 +49,7 @@ public class OllamaController : ControllerBase
             if (stream != null)
                 result.Append(stream.Message.Content);
 
-        Prescription thePrescription = JsonSerializer.Deserialize<Prescription>(result.ToString())!;
+        Prescription[] thePrescription = JsonSerializer.Deserialize<Dictionary<int, Prescription>>(result.ToString())!.Values.ToArray();
 
         return thePrescription;
     }

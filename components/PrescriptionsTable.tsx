@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {MedicalPrescription} from "@/components/models/MedicalPrescription";
+import {AbstractMedicalPrescription, MedicalPrescription} from "@/components/models/MedicalPrescription";
 import {ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {UserDataService} from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
@@ -10,27 +10,41 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Notifications from 'expo-notifications';
 import {SchedulableTriggerInputTypes} from 'expo-notifications';
 
-interface TableItem extends MedicalPrescription {
+interface TableItem extends AbstractMedicalPrescription {
     id: string;
+    taken: number;
+    skipped: number;
+    reminderTimes: string[]; // Store time in 24-hour format (HH:MM)
+    endAt: Date;
 }
+
+// Convert time string to display format (12-hour with AM/PM)
+const formatTimeForDisplay = (timeString?: string): string => {
+    if (!timeString) return 'No reminder';
+
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
     const [editItem, setEditItem] = useState<TableItem | null>(null);
-    const [editedValues, setEditedValues] = useState<MedicalPrescription>({
+    const [editedValues, setEditedValues] = useState<TableItem>({
+        id: '',
         name: '',
-        usage: '',
-        qty: 0,
-        refills: 0,
-        discard: '',
+        doseQty: 0,
+        doseUnit: "",
         taken: 0,
         skipped: 0,
-        note: '',
-        reminderTimes: []
+        reminderTimes: [],
+        endAt: new Date(),
     });
     const [myPrescriptions, setMyPrescriptions] = useState<TableItem[]>([]);
     const [attachments, setAttachments] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
     const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
 
     // Reference to keep track of the most up-to-date prescriptions state
@@ -45,15 +59,14 @@ export const PrescriptionsTable = () => {
     const handleEdit = (item: TableItem): void => {
         setEditItem(item);
         setEditedValues({
+            id: item.id,
             name: item.name,
-            usage: item.usage,
-            qty: item.qty,
-            refills: item.refills,
-            discard: item.discard,
-            note: item.note,
+            doseQty: item.doseQty,
+            doseUnit: item.doseUnit,
             taken: item.taken,
             skipped: item.skipped,
-            reminderTimes: item.reminderTimes
+            reminderTimes: item.reminderTimes,
+            endAt: item.endAt,
         });
         setModalVisible(true);
     };
@@ -62,12 +75,12 @@ export const PrescriptionsTable = () => {
     const handleSave = async (): Promise<void> => {
         if (editItem) {
             editItem.name = editedValues.name;
-            editItem.usage = editedValues.usage;
-            editItem.qty = editedValues.qty;
-            editItem.refills = editedValues.refills;
-            editItem.discard = editedValues.discard;
-            editItem.note = editedValues.note;
+            editItem.doseQty = editedValues.doseQty;
+            editItem.doseUnit = editedValues.doseUnit;
+            editItem.taken = editedValues.taken;
+            editItem.skipped = editedValues.skipped;
             editItem.reminderTimes = editedValues.reminderTimes;
+            editItem.endAt = editedValues.endAt;
 
             // Cancel existing notifications
             await Notifications.cancelScheduledNotificationAsync(editItem.id);
@@ -117,27 +130,19 @@ export const PrescriptionsTable = () => {
     };
 
     // Handler for add button
-    const handleAdd = (value: MedicalPrescription): void => {
+    const handleAdd = (): void => {
         setEditItem(null);
-        if (value.reminderTimes == undefined) {
-            value.reminderTimes = []
-        }
-        setEditedValues(value);
-        setModalVisible(true);
-    };
-
-    // Prompt user to add
-    const promptAdd = (): void => {
-        handleAdd({
+        setEditedValues({
+            id: '',
             name: '',
-            usage: '',
-            qty: 0,
-            refills: 0,
-            discard: '',
+            doseQty: 0,
+            doseUnit: "",
             taken: 0,
             skipped: 0,
-            note: '',
+            reminderTimes: [],
+            endAt: new Date()
         })
+        setModalVisible(true);
     }
 
     // Handle medication taken action
@@ -230,6 +235,7 @@ export const PrescriptionsTable = () => {
         // Launch camera for taking photo
         const result: ImagePickerResult = await ImagePicker.launchCameraAsync({
             base64: true,
+            allowsEditing: true,
         });
         // Process image if any photo was taken
         if (!result.canceled) {
@@ -245,6 +251,7 @@ export const PrescriptionsTable = () => {
         // Prompt user for selecting photo
         const result: ImagePickerResult = await ImagePicker.launchImageLibraryAsync({
             base64: true,
+            allowsEditing: true,
         });
         // Process image if any photo was selected
         if (!result.canceled) {
@@ -265,10 +272,38 @@ export const PrescriptionsTable = () => {
             // Show loading spinner
             setIsLoading(true);
             try {
-                const result: MedicalPrescription = (await HttpService.getImageText(attachments)).data;
+                const result: MedicalPrescription[] = (await HttpService.getImageText(attachments)).data;
+                console.log(result)
                 // Trigger adding a new prescription from the parent component
-                if (result.name) {
-                    handleAdd(result);
+                if (result) {
+                    for (const p of result) {
+                        const endAt: Date = new Date(p.createdAt);
+                        endAt.setDate(endAt.getDate() + p.days);
+                        const newItem: TableItem = {
+                            ...p,
+                            id: Date.now().toString(),
+                            taken: 0,
+                            skipped: 0,
+                            reminderTimes: [],
+                            endAt: endAt
+                        };
+                        // Add time according to Frequency
+                        const frequencyTable: string[] = p.frequency.split("-")
+                        if (frequencyTable.at(0) == "1") {
+                            newItem.reminderTimes.push("08:00");
+                        }
+                        if (frequencyTable.at(1) == "1") {
+                            newItem.reminderTimes.push("13:00");
+                        }
+                        if (frequencyTable.at(2) == "1") {
+                            newItem.reminderTimes.push("18:00");
+                        }
+                        // Add item to existing prescriptions
+                        myPrescriptions.push(newItem);
+                        // Schedule notifications for new item
+                        await scheduleNotifications(newItem);
+                    }
+                    await UserDataService.save();
                 } else {
                     Alert.alert('Invalid Image', 'Please try again!');
                 }
@@ -280,12 +315,6 @@ export const PrescriptionsTable = () => {
             }
             setAttachments([])
         }
-    }
-
-    async function logDebugInfo(): Promise<void> {
-        console.info('-----Log Debug-----')
-        console.log("Current all Notification:")
-        console.log(await Notifications.getAllScheduledNotificationsAsync())
     }
 
     // Fetch my prescriptions when the component mounts
@@ -301,7 +330,16 @@ export const PrescriptionsTable = () => {
                 await scheduleNotifications(p);
             }
 
-            // await logDebugInfo();
+            // Log debug info
+            if (__DEV__) {
+                const allScheduledNotificationsAsync = await Notifications.getAllScheduledNotificationsAsync();
+                if (allScheduledNotificationsAsync?.length > 0) {
+                    console.log(`In total of ${allScheduledNotificationsAsync.length} notification(s):`);
+                    allScheduledNotificationsAsync.forEach(n => console.log(n))
+                } else {
+                    console.log("No notification");
+                }
+            }
         }
 
         async function setupNotificationHandlers() {
@@ -402,17 +440,6 @@ export const PrescriptionsTable = () => {
         }
     };
 
-    // Convert time string to display format (12-hour with AM/PM)
-    const formatTimeForDisplay = (timeString?: string): string => {
-        if (!timeString) return 'No reminder';
-
-        const [hours, minutes] = timeString.split(':').map(Number);
-        const period = hours >= 12 ? 'PM' : 'AM';
-        const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-
-        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-    };
-
     // Header component
     const TableHeader: React.FC = () => (
         <View style={styles.headerRow}>
@@ -430,11 +457,9 @@ export const PrescriptionsTable = () => {
                 style={[styles.cell, styles.reminderColumn]}
                 onPress={() => handleEdit(item)}
             >
-                {item.reminderTimes && item.reminderTimes.length > 1 && (
-                    <Text style={styles.reminderSubtext}>
-                        {item.reminderTimes.map(time => formatTimeForDisplay(time)).join(', ')}
-                    </Text>
-                )}
+                <Text style={styles.reminderSubtext}>
+                    {item.reminderTimes.map(time => formatTimeForDisplay(time)).join(', ')}
+                </Text>
             </TouchableOpacity>
             <View style={[styles.cell, styles.actionColumn, styles.buttonContainer]}>
                 <TouchableOpacity
@@ -452,16 +477,6 @@ export const PrescriptionsTable = () => {
             </View>
         </View>
     );
-
-    // Convert Date to string in 'yyyy-mm-dd' format
-    function dateToString(date: Date): string {
-        const year = date.getFullYear();
-        // getMonth() is zero-based, so add 1 and pad with a leading zero if needed
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-
-        return `${year}-${month}-${day}`;
-    }
 
     // Add this Modal component to your render function
     const LoadingModal = () => (
@@ -494,7 +509,7 @@ export const PrescriptionsTable = () => {
                     <TouchableOpacity style={styles.addButton} onPress={selectPrescriptionPhoto}>
                         <Ionicons name="image" size={20} color="white"/>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.addButton} onPress={promptAdd}>
+                    <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
                         <Text style={styles.addButtonText}>Add</Text>
                     </TouchableOpacity>
                 </View>
@@ -526,32 +541,30 @@ export const PrescriptionsTable = () => {
                             onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
                         />
 
-                        <Text style={styles.inputLabel}>Usage:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={editedValues.usage}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, usage: text})}
-                        />
-
-                        <Text style={styles.inputLabel}>QTY:</Text>
+                        <Text style={styles.inputLabel}>Dose Qty:</Text>
                         <TextInput
                             style={styles.input}
                             keyboardType='numeric'
-                            value={editedValues.qty.toString()}
+                            value={editedValues.doseQty.toString()}
                             onChangeText={(text: string) => setEditedValues({
                                 ...editedValues,
-                                qty: text ? parseInt(text) : 0
+                                doseQty: text ? parseInt(text) : 0
                             })}
                         />
 
-                        <Text style={styles.inputLabel}>Refills Remaining:</Text>
+                        <Text style={styles.inputLabel}>Dose Unit:</Text>
                         <TextInput
                             style={styles.input}
-                            keyboardType='numeric'
-                            value={editedValues.refills.toString()}
-                            onChangeText={(text: string) => setEditedValues({
+                            value={editedValues.doseUnit}
+                            onChangeText={(text: string) => setEditedValues({...editedValues, doseUnit: text})}
+                        />
+
+                        <Text style={styles.inputLabel}>End At:</Text>
+                        <DateTimePicker
+                            value={new Date(editedValues.endAt)}
+                            onChange={(_, theDate: Date | undefined) => setEditedValues({
                                 ...editedValues,
-                                refills: text ? parseInt(text) : 0
+                                endAt: new Date(theDate ? theDate : editedValues.endAt)
                             })}
                         />
 
@@ -574,15 +587,6 @@ export const PrescriptionsTable = () => {
                             onChangeText={(text: string) => setEditedValues({
                                 ...editedValues,
                                 skipped: text ? parseInt(text) : 0
-                            })}
-                        />
-
-                        <Text style={styles.inputLabel}>Date To Discard:</Text>
-                        <DateTimePicker
-                            value={editedValues.discard ? new Date(editedValues.discard) : new Date()}
-                            onChange={(_, theDate: Date | undefined) => setEditedValues({
-                                ...editedValues,
-                                discard: theDate ? dateToString(theDate) : editedValues.discard
                             })}
                         />
 
@@ -639,13 +643,6 @@ export const PrescriptionsTable = () => {
                                 onChange={onTimeChange}
                             />
                         )}
-
-                        <Text style={styles.inputLabel}>Note:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={editedValues.note}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, note: text})}
-                        />
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
