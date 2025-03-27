@@ -18,6 +18,19 @@ interface TableItem extends AbstractMedicalPrescription {
     endAt: Date;
 }
 
+// check if a prescription has expired
+function isPrescriptionExpired(p: TableItem): boolean {
+    // Get current date and reset time to midnight
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+
+    // Create a new Date object with just the date part
+    const expiryDate = new Date(p.endAt);
+    expiryDate.setHours(0, 0, 0, 0);
+
+    return expiryDate < currentDate;
+}
+
 // Convert time string to display format (12-hour with AM/PM)
 const formatTimeForDisplay = (timeString?: string): string => {
     if (!timeString) return 'No reminder';
@@ -81,9 +94,6 @@ export const PrescriptionsTable = () => {
             editItem.skipped = editedValues.skipped;
             editItem.reminderTimes = editedValues.reminderTimes;
             editItem.endAt = editedValues.endAt;
-
-            // Cancel existing notifications
-            await Notifications.cancelScheduledNotificationAsync(editItem.id);
 
             // Schedule new notifications for all reminder times
             await scheduleNotifications(editItem);
@@ -200,6 +210,9 @@ export const PrescriptionsTable = () => {
 
         // Cancel any existing notifications for this item
         await cancelAllNotifications(item.id);
+
+        // No need to schedule notification for expired prescription
+        if (isPrescriptionExpired(item)) return;
 
         // Schedule a notification for each reminder time
         for (let i = 0; i < item.reminderTimes.length; i++) {
@@ -440,6 +453,20 @@ export const PrescriptionsTable = () => {
         }
     };
 
+    // Render expired prescriptions
+    const RenderExpire: React.FC = () => {
+        const expiredPrescription: TableItem[] = myPrescriptions.filter(p => isPrescriptionExpired(p))
+        if (expiredPrescription.length == 0) {
+            return (<View/>);
+        }
+        return (
+            <View>
+                <Text style={[styles.modalTitle, {marginTop: 15}]}>Expired</Text>
+                {expiredPrescription.map((p, i) => renderItem(p, i))}
+            </View>
+        )
+    }
+
     // Header component
     const TableHeader: React.FC = () => (
         <View style={styles.headerRow}>
@@ -521,7 +548,9 @@ export const PrescriptionsTable = () => {
                 <TableHeader/>
             </View>
 
-            {myPrescriptions.map((p, i) => renderItem(p, i))}
+            {myPrescriptions.filter(p => !isPrescriptionExpired(p)).map((p, i) => renderItem(p, i))}
+
+            <RenderExpire/>
 
             {/* Edit Modal */}
             <Modal
