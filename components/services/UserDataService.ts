@@ -23,6 +23,12 @@ export class UserDataService {
         return this.VALUES[k];
     }
 
+    public static async set(k: string, v: any): Promise<void> {
+        await this.init();
+        this.VALUES[k] = v;
+        await this.save();
+    }
+
     // Save the config file
     public static async save(): Promise<void> {
         try {
