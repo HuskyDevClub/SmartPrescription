@@ -15,6 +15,6 @@ public class Prescription
     [Required] public string Frequency { get; set; } = string.Empty;
 
     [Required] public int Days { get; set; }
-    
+
     [Required] public DateTime CreatedAt { get; set; } = DateTime.Now;
 }

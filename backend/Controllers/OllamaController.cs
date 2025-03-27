@@ -11,7 +11,7 @@ namespace backend.Controllers;
 [Route("api/[controller]")]
 public class OllamaController : ControllerBase
 {
-    private const string MODEL = "gemma3:12b";
+    private const string MODEL = "llama3.2-vision";
 
     private const string EXTRACTION_PROMPT =
         "If the given image is a photo of discharge medication orders that likely contains mutiple drugs, extract following information for every drug in the image:\n" +
@@ -49,7 +49,19 @@ public class OllamaController : ControllerBase
             if (stream != null)
                 result.Append(stream.Message.Content);
 
-        Prescription[] thePrescription = JsonSerializer.Deserialize<Dictionary<int, Prescription>>(result.ToString())!.Values.ToArray();
+        Prescription[] thePrescription;
+
+        try
+        {
+            thePrescription = JsonSerializer.Deserialize<Dictionary<int, Prescription>>(result.ToString())!.Values
+                .ToArray();
+        }
+        catch (Exception e)
+        {
+            thePrescription = [];
+            Console.WriteLine(result.ToString());
+            Console.WriteLine(e);
+        }
 
         return thePrescription;
     }
