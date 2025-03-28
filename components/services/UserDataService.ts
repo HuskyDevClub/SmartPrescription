@@ -48,6 +48,7 @@ export class UserDataService {
                 const data: string = await FileSystem.readAsStringAsync(PATH, {encoding: "utf8"});
                 this.VALUES = JSON.parse(data);
             }
+            this.isInitialized = true;
         } catch (error) {
             console.error('Error creating config file:', error);
         }

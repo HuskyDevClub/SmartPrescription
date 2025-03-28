@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {MedicalPrescription, PrescriptionRecord} from "@/components/models/MedicalPrescription";
 import {ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {UserDataService} from "@/components/services/UserDataService";
@@ -8,58 +8,17 @@ import {HttpService} from "@/components/services/HttpService";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Notifications from 'expo-notifications';
-import {SchedulableTriggerInputTypes} from 'expo-notifications';
-
-// check if a prescription has expired
-function isPrescriptionExpired(p: PrescriptionRecord): boolean {
-    // Get current date and reset time to midnight
-    const currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
-
-    // Create a new Date object with just the date part
-    const expiryDate = new Date(p.endAt);
-    expiryDate.setHours(0, 0, 0, 0);
-
-    return expiryDate < currentDate;
-}
-
-// Convert time string to display format (12-hour with AM/PM)
-const formatTimeForDisplay = (timeString?: string): string => {
-    if (!timeString) return 'No reminder';
-
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-};
+import {PrescriptionService} from "@/components/services/PrescriptionService";
+import {DateService} from "@/components/services/DateService";
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
     const [editItem, setEditItem] = useState<PrescriptionRecord | null>(null);
-    const [editedValues, setEditedValues] = useState<PrescriptionRecord>({
-        id: '',
-        name: '',
-        doseQty: 0,
-        doseUnit: "",
-        taken: 0,
-        skipped: 0,
-        reminderTimes: [],
-        startAt: new Date(),
-        endAt: new Date(),
-    });
-    const [myPrescriptions, setMyPrescriptions] = useState<PrescriptionRecord[]>([]);
+    const [editedValues, setEditedValues] = useState<PrescriptionRecord>(PrescriptionService.new());
     const [attachments, setAttachments] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
-
-    // Reference to keep track of the most up-to-date prescriptions state
-    const prescriptionsRef = useRef<PrescriptionRecord[]>([]);
-
-    // Update ref when state changes
-    useEffect(() => {
-        prescriptionsRef.current = myPrescriptions;
-    }, [myPrescriptions]);
+    const [forceUpdate, setForceUpdate] = useState<boolean>(false);
 
     // Handler for edit button
     const handleEdit = (item: PrescriptionRecord): void => {
@@ -81,35 +40,21 @@ export const PrescriptionsTable = () => {
             editItem.endAt = editedValues.endAt;
 
             // Schedule new notifications for all reminder times
-            await scheduleNotifications(editItem);
+            await PrescriptionService.scheduleNotifications(editItem);
+            // Save changes
+            await UserDataService.save();
         } else {
-            const newItem: PrescriptionRecord = {
+            // Add the Prescription
+            await PrescriptionService.addPrescription({
                 ...editedValues,
                 id: Date.now().toString(),
-            };
-
-            myPrescriptions.push(newItem);
-
-            // Schedule notifications for new item
-            await scheduleNotifications(newItem);
+            });
         }
-        await UserDataService.save();
         setModalVisible(false);
     };
 
     // Handler for delete button
     const handleDelete = async (id: string): Promise<void> => {
-        // Remove prescription at given index
-        const removePrescriptionAt = async (index: number): Promise<void> => {
-            if (index >= 0) {
-                // Cancel all notifications for deleted item
-                await cancelAllNotifications(id);
-
-                myPrescriptions.splice(index, 1);
-                await UserDataService.save();
-                setEditItem({} as PrescriptionRecord);
-            }
-        }
         // Alert user before removal
         Alert.alert('Warning', 'Are you sure you want to delete this item?', [
             {
@@ -118,7 +63,8 @@ export const PrescriptionsTable = () => {
             },
             {
                 text: 'Confirm', onPress: async () => {
-                    await removePrescriptionAt(myPrescriptions.findIndex(item => item.id === id));
+                    await PrescriptionService.removePrescription(id);
+                    setEditItem(PrescriptionService.new());
                 }
             },
         ]);
@@ -127,98 +73,10 @@ export const PrescriptionsTable = () => {
     // Handler for add button
     const handleAdd = (): void => {
         setEditItem(null);
-        setEditedValues({
-            id: '',
-            name: '',
-            doseQty: 0,
-            doseUnit: "",
-            taken: 0,
-            skipped: 0,
-            reminderTimes: [],
-            startAt: new Date(),
-            endAt: new Date()
-        })
+        setEditedValues(PrescriptionService.new())
         setModalVisible(true);
     }
 
-    // Handle medication taken action
-    const handleMedicationTaken = async (id: string, notificationId: string): Promise<void> => {
-        const prescriptions = prescriptionsRef.current;
-        const index = prescriptions.findIndex(item => item.id === id);
-
-        if (index >= 0) {
-            // Increment taken count
-            prescriptions[index].taken += 1;
-
-            // Save to persistent storage
-            await UserDataService.save();
-
-            // Dismiss the notification
-            await Notifications.dismissNotificationAsync(notificationId);
-        }
-    };
-
-    // Handle medication skipped action
-    const handleMedicationSkipped = async (id: string, notificationId: string): Promise<void> => {
-        const prescriptions = prescriptionsRef.current;
-        const index = prescriptions.findIndex(item => item.id === id);
-
-        if (index >= 0) {
-            // Increment skipped count
-            prescriptions[index].skipped += 1;
-
-            // Save to persistent storage
-            await UserDataService.save();
-
-            // Dismiss the notification
-            await Notifications.dismissNotificationAsync(notificationId);
-        }
-    };
-
-    // Cancel all notifications for a medication
-    const cancelAllNotifications = async (id: string): Promise<void> => {
-        for (const n of (await Notifications.getAllScheduledNotificationsAsync())) {
-            if (n.identifier.startsWith(id)) {
-                await Notifications.cancelScheduledNotificationAsync(n.identifier)
-            }
-        }
-    };
-
-    // Schedule notifications for all reminder times of a medication
-    const scheduleNotifications = async (item: PrescriptionRecord): Promise<void> => {
-        if (!item.reminderTimes || item.reminderTimes.length === 0) return;
-
-        // Cancel any existing notifications for this item
-        await cancelAllNotifications(item.id);
-
-        // No need to schedule notification for expired prescription
-        if (isPrescriptionExpired(item)) return;
-
-        // Schedule a notification for each reminder time
-        for (let i = 0; i < item.reminderTimes.length; i++) {
-            const reminderTime = item.reminderTimes[i];
-            // Parse the reminder time
-            const [hours, minutes] = reminderTime.split(':').map(Number);
-
-            // Schedule the notification
-            await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: 'Medication Reminder',
-                    body: `Time to take your ${item.name}.`,
-                    sound: true,
-                    priority: Notifications.AndroidNotificationPriority.HIGH,
-                    data: {id: item.id},
-                    categoryIdentifier: 'medication-reminder',
-                },
-                trigger: {
-                    type: SchedulableTriggerInputTypes.DAILY,
-                    hour: hours,
-                    minute: minutes
-                },
-                identifier: `${item.id}_time_${i}`
-            });
-        }
-    }
 
     async function takePrescriptionPhoto(): Promise<void> {
         // Clear attachments
@@ -292,12 +150,9 @@ export const PrescriptionsTable = () => {
                         if (frequencyTable.at(2) == "1") {
                             newItem.reminderTimes.push("18:00");
                         }
-                        // Add item to existing prescriptions
-                        myPrescriptions.push(newItem);
                         // Schedule notifications for new item
-                        await scheduleNotifications(newItem);
+                        await PrescriptionService.addPrescription(newItem);
                     }
-                    await UserDataService.set("Prescriptions", myPrescriptions)
                 } else {
                     Alert.alert('Invalid Image', 'Please try again!');
                 }
@@ -313,29 +168,6 @@ export const PrescriptionsTable = () => {
 
     // Fetch my prescriptions when the component mounts
     useEffect(() => {
-        async function fetchMyPrescriptions(): Promise<void> {
-            const thePrescriptions: PrescriptionRecord[] = await UserDataService.try_get("Prescriptions", []);
-            setMyPrescriptions(thePrescriptions);
-            prescriptionsRef.current = thePrescriptions;
-
-            // Re-schedule notifications for all prescriptions with reminder times
-            await Notifications.cancelAllScheduledNotificationsAsync();
-            for (const p of thePrescriptions) {
-                await scheduleNotifications(p);
-            }
-
-            // Log debug info
-            if (__DEV__) {
-                const allScheduledNotificationsAsync = await Notifications.getAllScheduledNotificationsAsync();
-                if (allScheduledNotificationsAsync?.length > 0) {
-                    console.log(`In total of ${allScheduledNotificationsAsync.length} notification(s):`);
-                    allScheduledNotificationsAsync.forEach(n => console.log(n))
-                } else {
-                    console.log("No notification");
-                }
-            }
-        }
-
         async function setupNotificationHandlers() {
             // Request notification permissions
             const {status} = await Notifications.requestPermissionsAsync();
@@ -379,9 +211,9 @@ export const PrescriptionsTable = () => {
                 const {id, notificationId} = notification.request.content.data;
 
                 if (actionIdentifier === 'TAKEN_ACTION') {
-                    handleMedicationTaken(id, notificationId);
+                    PrescriptionService.handleMedicationTaken(id, notificationId);
                 } else if (actionIdentifier === 'SKIP_ACTION') {
-                    handleMedicationSkipped(id, notificationId);
+                    PrescriptionService.handleMedicationSkipped(id, notificationId);
                 }
             });
 
@@ -389,7 +221,7 @@ export const PrescriptionsTable = () => {
             return () => subscription.remove();
         }
 
-        fetchMyPrescriptions().then();
+        PrescriptionService.init().then(_ => setForceUpdate(!forceUpdate));
         setupNotificationHandlers().then();
     }, []);
 
@@ -436,7 +268,7 @@ export const PrescriptionsTable = () => {
 
     // Render expired prescriptions
     const RenderExpire: React.FC = () => {
-        const expiredPrescription: PrescriptionRecord[] = myPrescriptions.filter(p => isPrescriptionExpired(p))
+        const expiredPrescription: PrescriptionRecord[] = PrescriptionService.getExpiredPrescriptions()
         if (expiredPrescription.length == 0) {
             return (<View/>);
         }
@@ -466,7 +298,7 @@ export const PrescriptionsTable = () => {
                 onPress={() => handleEdit(item)}
             >
                 <Text style={styles.reminderSubtext}>
-                    {item.reminderTimes.map(time => formatTimeForDisplay(time)).join(', ')}
+                    {item.reminderTimes.map(time => DateService.formatTimeForDisplay(time)).join(', ')}
                 </Text>
             </TouchableOpacity>
             <View style={[styles.cell, styles.actionColumn, styles.buttonContainer]}>
@@ -529,7 +361,7 @@ export const PrescriptionsTable = () => {
                 <TableHeader/>
             </View>
 
-            {myPrescriptions.filter(p => !isPrescriptionExpired(p)).map((p, i) => renderItem(p, i))}
+            {PrescriptionService.getNotExpiredPrescriptions().map((p, i) => renderItem(p, i))}
 
             <RenderExpire/>
 
@@ -615,7 +447,7 @@ export const PrescriptionsTable = () => {
                         {editedValues.reminderTimes && editedValues.reminderTimes.map((time, idx) => (
                             <View key={idx} style={styles.timeSlotContainer}>
                                 <Text style={styles.timeSlotText}>
-                                    {formatTimeForDisplay(time)}
+                                    {DateService.formatTimeForDisplay(time)}
                                 </Text>
                                 <View style={styles.timeSlotButtons}>
                                     <TouchableOpacity

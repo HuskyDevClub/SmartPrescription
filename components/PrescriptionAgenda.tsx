@@ -1,35 +1,27 @@
 import React, {useEffect, useState} from 'react';
 import {SafeAreaView, StyleSheet, Text, View} from 'react-native';
 import {Calendar} from 'react-native-calendars';
-import moment from 'moment';
 import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
-import {UserDataService} from "@/components/services/UserDataService";
+import {PrescriptionService} from "@/components/services/PrescriptionService";
+import {DateService} from "@/components/services/DateService";
 
 export const PrescriptionAgenda = () => {
     const [markedDates, setMarkedDates] = useState<any>({});
-    const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
+    const [selectedDate, setSelectedDate] = useState(DateService.formatDate(new Date()));
     const [dailyMedications, setDailyMedications] = useState<PrescriptionRecord[]>([]);
-    const [myPrescriptions, setMyPrescriptions] = useState<PrescriptionRecord[]>([]);
 
     useEffect(() => {
-        async function fetchMyPrescriptions(): Promise<PrescriptionRecord[]> {
-            return UserDataService.try_get("Prescriptions", []);
-        }
-
-        fetchMyPrescriptions().then(prescriptions => {
-                setMyPrescriptions(prescriptions);
-
+        // Function to fetch and update data
+        const updateData = () => {
+            PrescriptionService.init().then(_ => {
                 // Generate marked dates from prescriptions
                 const marks: any = {};
 
-                prescriptions.forEach(prescription => {
-                    const startDate = moment(prescription.startAt);
-                    const endDate = moment(prescription.endAt);
-
+                PrescriptionService.getAllPrescriptions().forEach(prescription => {
                     // Mark all dates between start and end
-                    let currentDate = moment(startDate);
-                    while (currentDate.isSameOrBefore(endDate, 'day')) {
-                        const dateStr = currentDate.format('YYYY-MM-DD');
+                    let currentDate = new Date(prescription.startAt);
+                    while (DateService.isDateSameOrBefore(currentDate, prescription.endAt)) {
+                        const dateStr:string = DateService.formatDate(currentDate);
 
                         if (!marks[dateStr]) {
                             marks[dateStr] = {
@@ -45,7 +37,8 @@ export const PrescriptionAgenda = () => {
                             selectedDotColor: 'white'
                         });
 
-                        currentDate.add(1, 'days');
+                        // Add one day to current date
+                        currentDate.setDate(currentDate.getDate() + 1);
                     }
                 });
 
@@ -53,21 +46,26 @@ export const PrescriptionAgenda = () => {
 
                 // Update daily medications for the selected date
                 updateDailyMedications(selectedDate);
-            }
-        )
-    }, [myPrescriptions, selectedDate]);
+            });
+        };
+
+        // Initial data fetch
+        updateData();
+
+        // Set up interval to run every second (1000ms)
+        const intervalId = setInterval(updateData, 1000);
+
+        // Clean up interval when component unmounts or when dependencies change
+        return () => clearInterval(intervalId);
+    }, [selectedDate]); // selectedDate is still a dependency for updateDailyMedications
 
     // Update medications for the selected date
     const updateDailyMedications = (date: string) => {
-        const medsForDay = myPrescriptions.filter(prescription => {
-            const selectedMoment = moment(date);
-            const startDate = moment(prescription.startAt);
-            const endDate = moment(prescription.endAt);
-
-            return selectedMoment.isSameOrAfter(startDate, 'day') &&
-                selectedMoment.isSameOrBefore(endDate, 'day');
+        const selectedDate = new Date(date);
+        const medsForDay = PrescriptionService.getAllPrescriptions().filter(prescription => {
+            return DateService.isDateSameOrAfter(selectedDate, prescription.startAt) &&
+                DateService.isDateSameOrBefore(selectedDate, prescription.endAt);
         });
-
         setDailyMedications(medsForDay);
     };
 
@@ -107,7 +105,7 @@ export const PrescriptionAgenda = () => {
 
             <View style={styles.medicationsContainer}>
                 <Text style={styles.dateTitle}>
-                    Medications for {moment(selectedDate).format('MMMM D, YYYY')}
+                    Medications for {DateService.formatDisplayDate(selectedDate)}
                 </Text>
 
                 {dailyMedications.length > 0 ? (
