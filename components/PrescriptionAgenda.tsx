@@ -21,7 +21,7 @@ export const PrescriptionAgenda = () => {
                     // Mark all dates between start and end
                     let currentDate = new Date(prescription.startAt);
                     while (DateService.isDateSameOrBefore(currentDate, prescription.endAt)) {
-                        const dateStr:string = DateService.formatDate(currentDate);
+                        const dateStr: string = DateService.formatDate(currentDate);
 
                         if (!marks[dateStr]) {
                             marks[dateStr] = {
