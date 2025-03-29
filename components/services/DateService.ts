@@ -23,16 +23,6 @@ export class DateService {
         return d1 >= d2;
     };
 
-    // Helper function to format date as YYYY-MM-DD
-    public static formatDate(date: Date): string {
-        return date.toISOString().split('T')[0];
-    };
-
-    // Helper function to format date as Month D, YYYY
-    public static formatDisplayDate(dateString: string): string {
-        return (new Date(dateString)).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
-    };
-
     // Convert time string to display format (12-hour with AM/PM)
     public static formatTimeForDisplay(timeString?: string): string {
         if (!timeString) return 'No reminder';

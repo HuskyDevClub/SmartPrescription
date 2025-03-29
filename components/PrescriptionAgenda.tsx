@@ -7,7 +7,7 @@ import {DateService} from "@/components/services/DateService";
 
 export const PrescriptionAgenda = () => {
     const [markedDates, setMarkedDates] = useState<any>({});
-    const [selectedDate, setSelectedDate] = useState(DateService.formatDate(new Date()));
+    const [selectedDate, setSelectedDate] = useState(new Date());
     const [dailyMedications, setDailyMedications] = useState<PrescriptionRecord[]>([]);
 
     useEffect(() => {
@@ -21,7 +21,8 @@ export const PrescriptionAgenda = () => {
                     // Mark all dates between start and end
                     let currentDate = new Date(prescription.startAt);
                     while (DateService.isDateSameOrBefore(currentDate, prescription.endAt)) {
-                        const dateStr: string = DateService.formatDate(currentDate);
+                        // format date as YYYY-MM-DD
+                        const dateStr: string = currentDate.toISOString().split('T')[0];
 
                         if (!marks[dateStr]) {
                             marks[dateStr] = {
@@ -60,8 +61,7 @@ export const PrescriptionAgenda = () => {
     }, [selectedDate]); // selectedDate is still a dependency for updateDailyMedications
 
     // Update medications for the selected date
-    const updateDailyMedications = (date: string) => {
-        const selectedDate = new Date(date);
+    const updateDailyMedications = (selectedDate: Date) => {
         const medsForDay = PrescriptionService.getAllPrescriptions().filter(prescription => {
             return DateService.isDateSameOrAfter(selectedDate, prescription.startAt) &&
                 DateService.isDateSameOrBefore(selectedDate, prescription.endAt);
@@ -86,8 +86,10 @@ export const PrescriptionAgenda = () => {
 
     // Handle date selection
     const onDayPress = (day: any) => {
-        setSelectedDate(day.dateString);
-        updateDailyMedications(day.dateString);
+        const parts = day.dateString.split('-');
+        const theDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        setSelectedDate(theDate);
+        updateDailyMedications(theDate);
     };
 
     return (
@@ -105,7 +107,11 @@ export const PrescriptionAgenda = () => {
 
             <View style={styles.medicationsContainer}>
                 <Text style={styles.dateTitle}>
-                    Medications for {DateService.formatDisplayDate(selectedDate)}
+                    Medications for {selectedDate.toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                })}
                 </Text>
 
                 {dailyMedications.length > 0 ? (
