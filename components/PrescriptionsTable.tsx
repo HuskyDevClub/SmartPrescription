@@ -1,6 +1,16 @@
 import React, {useEffect, useState} from 'react';
 import {MedicalPrescription, PrescriptionRecord} from "@/components/models/MedicalPrescription";
-import {ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import {UserDataService} from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
 import {ImagePickerResult} from "expo-image-picker";
@@ -376,11 +386,19 @@ export const PrescriptionsTable = () => {
                         <Text style={styles.modalTitle}>{editItem ? 'Edit Item' : 'Add New Item'}</Text>
 
                         <Text style={styles.inputLabel}>Name:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={editedValues.name}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
-                        />
+                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                            <TextInput
+                                style={[styles.input, {flex: 6}]}
+                                value={editedValues.name}
+                                onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
+                            />
+                            <TouchableOpacity
+                                style={{flex: 1, alignItems: 'center'}}
+                                onPress={() => Linking.openURL(`https://www.google.com/search?q=${editedValues.name}`)}
+                            >
+                                <Ionicons name="link" size={28} color="blue"/>
+                            </TouchableOpacity>
+                        </View>
 
                         <Text style={styles.inputLabel}>Dosage:</Text>
                         <TextInput
