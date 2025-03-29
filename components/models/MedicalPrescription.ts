@@ -1,6 +1,8 @@
 export interface AbstractMedicalPrescription {
     name: string;
     dosage: string;
+    type: string;
+    food: number;
 }
 
 export interface MedicalPrescription extends AbstractMedicalPrescription {

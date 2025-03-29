@@ -11,14 +11,16 @@ namespace backend.Controllers;
 [Route("api/[controller]")]
 public class OllamaController : ControllerBase
 {
-    private const string MODEL = "llama3.2-vision";
+    private const string MODEL = "llama3.2-vision:11b-instruct-q8_0";
 
     private const string EXTRACTION_PROMPT =
         "If the given image is a photo of discharge medication orders that likely contain multiple drugs, extract the following information for every drug in the image:\n" +
-        "- Name (string): The name of the drug\n" +
-        "- Dosage (string): The size or frequency of a dose of a medicine or drug.\n" +
+        "- Type (string): The medication format (e.g., TAB for tablet, INJ for injection) which may sometimes appear combined with the medication name.\n"+
+        "- Name (string): The medication name that identifies the specific pharmaceutical product. Always exclude any Type information from this field.\n" +
+        "- Dosage (string): The size of a dose of a medicine or drug.\n" +
         "- Route (string): Routes of drug administration\n" +
-        "- Frequency (string): The frequency of drug administration, usually in the form of three numbers (0 or 1) split by dashes\n" +
+        "- Food (int): Timing of medication in relation to meals: Use 1 if medication should be taken before food, 2 if after food, or 0 if timing relative to food doesn't matter.\n"+
+        "- Frequency (string): The medication dosage schedule, represented by three digits (either 0 or 1) separated by hyphens\n" +
         "- Days (int): Thr number of days\n" +
         "Return your answer as a valid JSON object, with the index as the key, the data as the value.\n" +
         "Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.";

@@ -1,7 +1,6 @@
 import React from "react";
 import {PrescriptionAgenda} from "@/components/PrescriptionAgenda";
-import {Animated} from "react-native";
-import ScrollView = Animated.ScrollView;
+import {ScrollView} from "react-native";
 
 export default function AgendaScreen() {
     return (

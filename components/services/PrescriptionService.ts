@@ -104,6 +104,8 @@ export class PrescriptionService {
             id: '',
             name: '',
             dosage: "",
+            type: "",
+            food: 0,
             taken: 0,
             skipped: 0,
             reminderTimes: [],

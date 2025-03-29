@@ -5,10 +5,14 @@ namespace backend.Models;
 public class Prescription
 {
     [Required] public string Name { get; set; } = string.Empty;
+    
+    [Required] public string Type { get; set; } = string.Empty;
 
     [Required] public string Dosage { get; set; } = string.Empty;
 
     [Required] public string Route { get; set; } = string.Empty;
+    
+    [Required] public int Food { get; set; }
 
     [Required] public string Frequency { get; set; } = string.Empty;
 

@@ -5,6 +5,8 @@ import {
     Alert,
     Linking,
     Modal,
+    SafeAreaView,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -41,7 +43,9 @@ export const PrescriptionsTable = () => {
     const handleSave = async (): Promise<void> => {
         if (editItem) {
             editItem.name = editedValues.name;
+            editItem.type = editedValues.type;
             editItem.dosage = editedValues.dosage;
+            editItem.food = editedValues.food;
             editItem.taken = editedValues.taken;
             editItem.skipped = editedValues.skipped;
             editItem.reminderTimes = editedValues.reminderTimes;
@@ -381,8 +385,8 @@ export const PrescriptionsTable = () => {
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}
             >
-                <View style={styles.centeredView}>
-                    <View style={styles.modalView}>
+                <SafeAreaView style={styles.centeredView}>
+                    <ScrollView style={styles.modalView}>
                         <Text style={styles.modalTitle}>{editItem ? 'Edit Item' : 'Add New Item'}</Text>
 
                         <Text style={styles.inputLabel}>Name:</Text>
@@ -400,11 +404,29 @@ export const PrescriptionsTable = () => {
                             </TouchableOpacity>
                         </View>
 
+                        <Text style={styles.inputLabel}>Type:</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={editedValues.type}
+                            onChangeText={(text: string) => setEditedValues({...editedValues, type: text})}
+                        />
+
                         <Text style={styles.inputLabel}>Dosage:</Text>
                         <TextInput
                             style={styles.input}
                             value={editedValues.dosage}
                             onChangeText={(text: string) => setEditedValues({...editedValues, dosage: text})}
+                        />
+
+                        <Text style={styles.inputLabel}>Food:</Text>
+                        <TextInput
+                            style={styles.input}
+                            keyboardType='numeric'
+                            value={editedValues.food.toString()}
+                            onChangeText={(text: string) => setEditedValues({
+                                ...editedValues,
+                                food: text ? parseInt(text) : 0
+                            })}
                         />
 
                         <Text style={styles.inputLabel}>Start At:</Text>
@@ -516,8 +538,8 @@ export const PrescriptionsTable = () => {
                                 <Text style={styles.buttonText}>Save</Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
-                </View>
+                    </ScrollView>
+                </SafeAreaView>
             </Modal>
         </View>
     )
