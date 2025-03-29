@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {SafeAreaView, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {Calendar} from 'react-native-calendars';
 import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
@@ -93,7 +93,7 @@ export const PrescriptionAgenda = () => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             <Calendar
                 markingType={'multi-dot'}
                 markedDates={markedDates}
@@ -142,7 +142,7 @@ export const PrescriptionAgenda = () => {
                     </Text>
                 )}
             </View>
-        </SafeAreaView>
+        </View>
     );
 };
 

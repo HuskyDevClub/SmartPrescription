@@ -142,3 +142,4 @@ expo-env.d.ts
 /backend/.idea
 /backend/bin
 /backend/obj
+/.expo
