@@ -103,8 +103,7 @@ export class PrescriptionService {
         return {
             id: '',
             name: '',
-            doseQty: 0,
-            doseUnit: "",
+            dosage: "",
             taken: 0,
             skipped: 0,
             reminderTimes: [],

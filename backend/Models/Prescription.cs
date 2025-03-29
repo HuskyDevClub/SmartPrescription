@@ -6,9 +6,7 @@ public class Prescription
 {
     [Required] public string Name { get; set; } = string.Empty;
 
-    [Required] public int DoseQty { get; set; }
-
-    [Required] public string DoseUnit { get; set; } = string.Empty;
+    [Required] public string Dosage { get; set; } = string.Empty;
 
     [Required] public string Route { get; set; } = string.Empty;
 

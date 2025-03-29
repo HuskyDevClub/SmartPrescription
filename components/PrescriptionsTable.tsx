@@ -31,8 +31,7 @@ export const PrescriptionsTable = () => {
     const handleSave = async (): Promise<void> => {
         if (editItem) {
             editItem.name = editedValues.name;
-            editItem.doseQty = editedValues.doseQty;
-            editItem.doseUnit = editedValues.doseUnit;
+            editItem.dosage = editedValues.dosage;
             editItem.taken = editedValues.taken;
             editItem.skipped = editedValues.skipped;
             editItem.reminderTimes = editedValues.reminderTimes;
@@ -383,22 +382,11 @@ export const PrescriptionsTable = () => {
                             onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
                         />
 
-                        <Text style={styles.inputLabel}>Dose Qty:</Text>
+                        <Text style={styles.inputLabel}>Dosage:</Text>
                         <TextInput
                             style={styles.input}
-                            keyboardType='numeric'
-                            value={editedValues.doseQty.toString()}
-                            onChangeText={(text: string) => setEditedValues({
-                                ...editedValues,
-                                doseQty: text ? parseInt(text) : 0
-                            })}
-                        />
-
-                        <Text style={styles.inputLabel}>Dose Unit:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={editedValues.doseUnit}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, doseUnit: text})}
+                            value={editedValues.dosage}
+                            onChangeText={(text: string) => setEditedValues({...editedValues, dosage: text})}
                         />
 
                         <Text style={styles.inputLabel}>Start At:</Text>

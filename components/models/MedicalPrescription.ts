@@ -1,7 +1,6 @@
 export interface AbstractMedicalPrescription {
     name: string;
-    doseQty: number;
-    doseUnit: string;
+    dosage: string;
 }
 
 export interface MedicalPrescription extends AbstractMedicalPrescription {

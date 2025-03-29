@@ -119,7 +119,7 @@ export const PrescriptionAgenda = () => {
                             />
                             <Text style={styles.medicationName}>{med.name}</Text>
                             <Text style={styles.medicationDose}>
-                                {med.doseQty} {med.doseUnit}
+                                {med.dosage}
                             </Text>
                             <View style={styles.timesContainer}>
                                 {med.reminderTimes.map((time, index) => (

@@ -14,14 +14,14 @@ public class OllamaController : ControllerBase
     private const string MODEL = "llama3.2-vision";
 
     private const string EXTRACTION_PROMPT =
-        "If the given image is a photo of discharge medication orders that likely contains mutiple drugs, extract following information for every drug in the image:\n" +
+        "If the given image is a photo of discharge medication orders that likely contain multiple drugs, extract the following information for every drug in the image:\n" +
         "- Name (string): The name of the drug\n" +
-        "- DoseQty (int): The quanity of the does\n" +
-        "- DoseUnit (string): The dose unit\n" +
-        "- Route (string): The route\n" +
-        "- Frequency (string): The frequency, usually in the form of three numbers (0 or 1) split by dashes\n" +
+        "- Dosage (string): The size or frequency of a dose of a medicine or drug.\n" +
+        "- Route (string): Routes of drug administration\n" +
+        "- Frequency (string): The frequency of drug administration, usually in the form of three numbers (0 or 1) split by dashes\n" +
         "- Days (int): Thr number of days\n" +
-        "Return your answer as a valid JSON object, with the int index as the key, the data as the value. Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.";
+        "Return your answer as a valid JSON object, with the index as the key, the data as the value.\n" +
+        "Ensure all quotes are properly escaped, all brackets are balanced, and the structure is parseable.";
 
     private static readonly OllamaApiClient OLLAMA = new(new Uri("http://localhost:11434"));
 
