@@ -1,23 +1,23 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
 import Slider from '@react-native-community/slider';
-
-interface SettingsState {
-    snoozeTime: number;
-    notificationsEnabled: boolean;
-    fontSize: 'small' | 'medium' | 'large';
-}
+import {SettingsService} from "@/components/services/SettingsService";
+import {PrescriptionService} from "@/components/services/PrescriptionService";
 
 export const SettingsMenu = () => {
-    const [settings, setSettings] = useState<SettingsState>({
-        snoozeTime: 15,
-        notificationsEnabled: true,
-        fontSize: 'medium',
-    });
 
-    const handleSaveSettings = () => {
+    const minSnoozeTime: number = 5;
 
+    const [forceUpdate, setForceUpdate] = useState<boolean>(false);
+
+    const saveChanges = async () => {
+        await SettingsService.save();
+        setForceUpdate(!forceUpdate);
     };
+
+    useEffect(() => {
+        SettingsService.init().then(_ => setForceUpdate(!forceUpdate))
+    }, [])
 
     return (
         <View style={styles.container}>
@@ -26,22 +26,23 @@ export const SettingsMenu = () => {
             {/* Snooze Time Slider */}
             <View style={styles.settingItem}>
                 <Text style={styles.settingLabel}>Time to snooze</Text>
-                <Text style={styles.settingValue}>{settings.snoozeTime} min</Text>
+                <Text style={styles.settingValue}>{SettingsService.current.snoozeTime} min</Text>
                 <Slider
                     style={styles.slider}
-                    value={settings.snoozeTime}
-                    minimumValue={0}
+                    value={SettingsService.current.snoozeTime}
+                    minimumValue={minSnoozeTime}
                     maximumValue={60}
                     step={5}
-                    onValueChange={(value) =>
-                        setSettings({...settings, snoozeTime: value})
-                    }
+                    onValueChange={async (value) => {
+                        SettingsService.current.snoozeTime = value
+                        await saveChanges()
+                    }}
                     minimumTrackTintColor="#4B7BEC"
                     maximumTrackTintColor="#ddd"
                     thumbTintColor="#4B7BEC"
                 />
                 <View style={styles.sliderLabels}>
-                    <Text style={styles.sliderLabel}>0</Text>
+                    <Text style={styles.sliderLabel}>minSnoozeTime</Text>
                     <Text style={styles.sliderLabel}>60</Text>
                 </View>
             </View>
@@ -50,12 +51,14 @@ export const SettingsMenu = () => {
             <View style={styles.settingItem}>
                 <Text style={styles.settingLabel}>Enable notifications</Text>
                 <Switch
-                    value={settings.notificationsEnabled}
-                    onValueChange={(value) =>
-                        setSettings({...settings, notificationsEnabled: value})
+                    value={SettingsService.current.notificationsEnabled}
+                    onValueChange={async (value) => {
+                        await PrescriptionService.setNotificationsEnable(value)
+                        setForceUpdate(!forceUpdate);
+                    }
                     }
                     trackColor={{false: '#ddd', true: '#4B7BEC'}}
-                    thumbColor={settings.notificationsEnabled ? '#fff' : '#fff'}
+                    thumbColor={SettingsService.current.notificationsEnabled ? '#fff' : '#fff'}
                 />
             </View>
 
@@ -66,14 +69,17 @@ export const SettingsMenu = () => {
                     <TouchableOpacity
                         style={[
                             styles.fontSizeButton,
-                            settings.fontSize === 'small' && styles.fontSizeButtonActive,
+                            SettingsService.current.fontSize === 'small' && styles.fontSizeButtonActive,
                         ]}
-                        onPress={() => setSettings({...settings, fontSize: 'small'})}
+                        onPress={async () => {
+                            SettingsService.current.fontSize = "small"
+                            await saveChanges()
+                        }}
                     >
                         <Text
                             style={[
                                 styles.fontSizeButtonText,
-                                settings.fontSize === 'small' && styles.fontSizeButtonTextActive,
+                                SettingsService.current.fontSize === 'small' && styles.fontSizeButtonTextActive,
                                 {fontSize: 12},
                             ]}
                         >
@@ -83,14 +89,17 @@ export const SettingsMenu = () => {
                     <TouchableOpacity
                         style={[
                             styles.fontSizeButton,
-                            settings.fontSize === 'medium' && styles.fontSizeButtonActive,
+                            SettingsService.current.fontSize === 'medium' && styles.fontSizeButtonActive,
                         ]}
-                        onPress={() => setSettings({...settings, fontSize: 'medium'})}
+                        onPress={async () => {
+                            SettingsService.current.fontSize = "medium"
+                            await saveChanges()
+                        }}
                     >
                         <Text
                             style={[
                                 styles.fontSizeButtonText,
-                                settings.fontSize === 'medium' && styles.fontSizeButtonTextActive,
+                                SettingsService.current.fontSize === 'medium' && styles.fontSizeButtonTextActive,
                                 {fontSize: 14},
                             ]}
                         >
@@ -100,14 +109,17 @@ export const SettingsMenu = () => {
                     <TouchableOpacity
                         style={[
                             styles.fontSizeButton,
-                            settings.fontSize === 'large' && styles.fontSizeButtonActive,
+                            SettingsService.current.fontSize === 'large' && styles.fontSizeButtonActive,
                         ]}
-                        onPress={() => setSettings({...settings, fontSize: 'large'})}
+                        onPress={async () => {
+                            SettingsService.current.fontSize = "large"
+                            await saveChanges()
+                        }}
                     >
                         <Text
                             style={[
                                 styles.fontSizeButtonText,
-                                settings.fontSize === 'large' && styles.fontSizeButtonTextActive,
+                                SettingsService.current.fontSize === 'large' && styles.fontSizeButtonTextActive,
                                 {fontSize: 16},
                             ]}
                         >
@@ -116,14 +128,6 @@ export const SettingsMenu = () => {
                     </TouchableOpacity>
                 </View>
             </View>
-
-            {/* Save Button */}
-            <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveSettings}
-            >
-                <Text style={styles.saveButtonText}>Save Settings</Text>
-            </TouchableOpacity>
         </View>
     );
 };
@@ -195,17 +199,5 @@ const styles = StyleSheet.create({
     },
     fontSizeButtonTextActive: {
         color: '#fff',
-    },
-    saveButton: {
-        backgroundColor: '#4B7BEC',
-        padding: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    }
 });

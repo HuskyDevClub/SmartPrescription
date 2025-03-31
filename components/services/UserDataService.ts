@@ -1,21 +1,21 @@
 // require the module
 import * as FileSystem from 'expo-file-system';
+import {AbstractAsyncService} from "@/components/services/AbstractAsyncService";
 
 const PATH: string = FileSystem.documentDirectory + "userData.json";
 
-export class UserDataService {
+export class UserDataService extends AbstractAsyncService {
 
     private static isInitialized: boolean = false;
-
     private static VALUES: Record<string, any> = {};
 
     public static async try_get(k: string, default_v: any): Promise<any> {
         await this.init();
-        if (!(k in this.VALUES)) {
-            this.VALUES[k] = default_v;
-            return default_v;
+        if (k in this.VALUES) {
+            return this.VALUES[k];
         }
-        return this.VALUES[k];
+        this.VALUES[k] = default_v;
+        return default_v;
     }
 
     public static async get(k: string): Promise<any> {
@@ -39,18 +39,18 @@ export class UserDataService {
         }
     }
 
-    // Create or ensure the config file exists
-    private static async init(): Promise<void> {
-        if (this.isInitialized) return;
-        try {
-            //console.log(await this.getPath());
-            if ((await FileSystem.getInfoAsync(PATH)).exists) {
-                const data: string = await FileSystem.readAsStringAsync(PATH, {encoding: "utf8"});
-                this.VALUES = JSON.parse(data);
-            }
-            this.isInitialized = true;
-        } catch (error) {
-            console.error('Error creating config file:', error);
-        }
+    // Create or load the existing user data file
+    protected static override async initialize(): Promise<void> {
+        if (!(await FileSystem.getInfoAsync(PATH)).exists) return;
+        const data: string = await FileSystem.readAsStringAsync(PATH, {encoding: "utf8"});
+        this.VALUES = JSON.parse(data);
+    }
+
+    protected static override getInit(): boolean {
+        return this.isInitialized;
+    }
+
+    protected static override setInit(status: boolean): void {
+        this.isInitialized = status
     }
 }

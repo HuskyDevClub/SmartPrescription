@@ -2,13 +2,14 @@ import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
 import {UserDataService} from "@/components/services/UserDataService";
 import * as Notifications from 'expo-notifications';
 import {SchedulableTriggerInputTypes} from 'expo-notifications';
+import {AbstractAsyncService} from "@/components/services/AbstractAsyncService";
+import {SettingsService} from "@/components/services/SettingsService";
 
 const NAME: string = "Prescriptions";
 
-export class PrescriptionService {
+export class PrescriptionService extends AbstractAsyncService {
 
     private static isInitialized: boolean = false;
-
     // Reference to keep track of the most up-to-date prescriptions state
     private static prescriptionsRef: PrescriptionRecord[] = [];
 
@@ -44,20 +45,21 @@ export class PrescriptionService {
     }
 
     public static async addPrescription(newItem: PrescriptionRecord): Promise<void> {
-        this.ensureInit()
+        await this.init();
         // Add item to list
         this.prescriptionsRef.push(newItem);
         // Schedule notifications for the new item
-        await PrescriptionService.scheduleNotifications(newItem);
+        await this.scheduleNotifications(newItem);
         // Save changes
         await UserDataService.save();
     }
 
     public static async removePrescription(id: string): Promise<void> {
+        await this.init();
         const index: number = this.prescriptionsRef.findIndex(item => item.id === id)
         if (index >= 0) {
             // Cancel all notifications for deleted item
-            await PrescriptionService.cancelAllNotifications(id);
+            await this.cancelPrescriptionNotifications(id);
             // Remove item on given index
             this.prescriptionsRef.splice(index, 1);
             // Save changes
@@ -119,10 +121,14 @@ export class PrescriptionService {
         if (!item.reminderTimes || item.reminderTimes.length === 0) return;
 
         // Cancel any existing notifications for this item
-        await this.cancelAllNotifications(item.id);
+        await this.cancelPrescriptionNotifications(item.id);
 
         // No need to schedule notification for expired prescription
         if (this.isPrescriptionExpired(item)) return;
+
+        // Do not notify if notification has been disabled
+        await SettingsService.init();
+        if (!SettingsService.current.notificationsEnabled) return;
 
         // Schedule a notification for each reminder time
         for (let i = 0; i < item.reminderTimes.length; i++) {
@@ -150,26 +156,52 @@ export class PrescriptionService {
         }
     }
 
+    // Schedule all notifications for all medications
+    public static async setNotificationsEnable(value: boolean): Promise<void> {
+        SettingsService.current.notificationsEnabled = value
+        await SettingsService.save();
+        if (value) {
+            await this.scheduleAllNotifications()
+        } else {
+            await this.cancelAllNotifications()
+        }
+    };
+
+    protected static override getInit(): boolean {
+        return this.isInitialized;
+    }
+
+    protected static override setInit(status: boolean): void {
+        this.isInitialized = status
+    }
+
+    // Ensure prescriptions are loaded
+    protected static override async initialize(): Promise<void> {
+        // Get ref from user data
+        this.prescriptionsRef = await UserDataService.try_get(NAME, []);
+
+        // Re-schedule notifications for all prescriptions with reminder times
+        await this.cancelAllNotifications();
+        await this.scheduleAllNotifications();
+    }
+
     // Cancel all notifications for a medication
-    public static async cancelAllNotifications(id: string): Promise<void> {
+    private static async cancelPrescriptionNotifications(id: string): Promise<void> {
         for (const n of (await Notifications.getAllScheduledNotificationsAsync()).filter(n => n.identifier.startsWith(id))) {
             await Notifications.cancelScheduledNotificationAsync(n.identifier)
         }
     };
 
-    // Ensure prescriptions are loaded
-    public static async init(): Promise<void> {
-        if (this.isInitialized) return;
-
-        // Get ref from user data
-        this.prescriptionsRef = await UserDataService.try_get(NAME, []);
-
-        // Re-schedule notifications for all prescriptions with reminder times
+    // Cancel all notifications for all medications
+    private static async cancelAllNotifications(): Promise<void> {
         await Notifications.cancelAllScheduledNotificationsAsync();
+    };
+
+    // Schedule all notifications for all medications
+    private static async scheduleAllNotifications(): Promise<void> {
         for (const p of this.prescriptionsRef) {
             await this.scheduleNotifications(p);
         }
-
         // Log debug info
         if (__DEV__) {
             const allScheduledNotificationsAsync = await Notifications.getAllScheduledNotificationsAsync();
@@ -180,13 +212,5 @@ export class PrescriptionService {
                 console.log("No notification");
             }
         }
-
-        // Flip the flag
-        this.isInitialized = true;
-    }
-
-    private static ensureInit(): void {
-        if (this.isInitialized) return;
-        throw Error('PrescriptionService Not initialized');
-    }
+    };
 }

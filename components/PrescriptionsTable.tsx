@@ -420,55 +420,91 @@ export const PrescriptionsTable = () => {
                         />
 
                         <Text style={styles.inputLabel}>Food:</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType='numeric'
-                            value={editedValues.food.toString()}
-                            onChangeText={(text: string) => setEditedValues({
-                                ...editedValues,
-                                food: text ? parseInt(text) : 0
-                            })}
-                        />
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.button2,
+                                    editedValues.food === 1 ? styles.selectedButton : null
+                                ]}
+                                onPress={() => setEditedValues({
+                                    ...editedValues,
+                                    food: editedValues.food === 1 ? 0 : 1
+                                })}
+                            >
+                                <Text style={[
+                                    styles.buttonText2,
+                                    editedValues.food === 1 ? styles.selectedButtonText : null
+                                ]}>
+                                    Before Food
+                                </Text>
+                            </TouchableOpacity>
 
-                        <Text style={styles.inputLabel}>Start At:</Text>
-                        <DateTimePicker
-                            value={new Date(editedValues.startAt)}
-                            onChange={(_, theDate: Date | undefined) => setEditedValues({
-                                ...editedValues,
-                                startAt: new Date(theDate ? theDate : editedValues.startAt)
-                            })}
-                        />
-
-                        <Text style={styles.inputLabel}>End At:</Text>
-                        <DateTimePicker
-                            value={new Date(editedValues.endAt)}
-                            onChange={(_, theDate: Date | undefined) => setEditedValues({
-                                ...editedValues,
-                                endAt: new Date(theDate ? theDate : editedValues.endAt)
-                            })}
-                        />
-
-                        <Text style={styles.inputLabel}>Taken:</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType='numeric'
-                            value={editedValues.taken.toString()}
-                            onChangeText={(text: string) => setEditedValues({
-                                ...editedValues,
-                                taken: text ? parseInt(text) : 0
-                            })}
-                        />
-
-                        <Text style={styles.inputLabel}>Skip:</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType='numeric'
-                            value={editedValues.skipped.toString()}
-                            onChangeText={(text: string) => setEditedValues({
-                                ...editedValues,
-                                skipped: text ? parseInt(text) : 0
-                            })}
-                        />
+                            <TouchableOpacity
+                                style={[
+                                    styles.button2,
+                                    editedValues.food === 2 ? styles.selectedButton : null
+                                ]}
+                                onPress={() => setEditedValues({
+                                    ...editedValues,
+                                    food: editedValues.food === 2 ? 0 : 2
+                                })}
+                            >
+                                <Text style={[
+                                    styles.buttonText2,
+                                    editedValues.food === 2 ? styles.selectedButtonText : null
+                                ]}>
+                                    After Food
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={[styles.buttonContainer, {marginTop: 15}]}>
+                            <View style={styles.splitBlockL}>
+                                <Text style={styles.inputLabel}>Start At:</Text>
+                                <DateTimePicker
+                                    value={new Date(editedValues.startAt)}
+                                    onChange={(_, theDate: Date | undefined) => setEditedValues({
+                                        ...editedValues,
+                                        startAt: new Date(theDate ? theDate : editedValues.startAt)
+                                    })}
+                                />
+                            </View>
+                            <View style={styles.splitBlockR}>
+                                <Text style={styles.inputLabel}>End At:</Text>
+                                <DateTimePicker
+                                    value={new Date(editedValues.endAt)}
+                                    onChange={(_, theDate: Date | undefined) => setEditedValues({
+                                        ...editedValues,
+                                        endAt: new Date(theDate ? theDate : editedValues.endAt)
+                                    })}
+                                />
+                            </View>
+                        </View>
+                        <View style={[styles.buttonContainer, {marginTop: 15}]}>
+                            <View style={styles.splitBlockL}>
+                                <Text style={styles.inputLabel}>Taken:</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    keyboardType='numeric'
+                                    value={editedValues.taken.toString()}
+                                    onChangeText={(text: string) => setEditedValues({
+                                        ...editedValues,
+                                        taken: text ? parseInt(text) : 0
+                                    })}
+                                />
+                            </View>
+                            <View style={styles.splitBlockR}>
+                                <Text style={styles.inputLabel}>Skip:</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    keyboardType='numeric'
+                                    value={editedValues.skipped.toString()}
+                                    onChangeText={(text: string) => setEditedValues({
+                                        ...editedValues,
+                                        skipped: text ? parseInt(text) : 0
+                                    })}
+                                />
+                            </View>
+                        </View>
 
                         <Text style={styles.inputLabel}>Reminder Times:</Text>
 
@@ -666,6 +702,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: 10,
+        marginBottom: 20,
     },
     button: {
         borderRadius: 5,
@@ -758,5 +795,36 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
         marginTop: 3,
+    },
+    selectedButton: {
+        backgroundColor: '#007AFF',
+        borderColor: '#007AFF',
+    },
+    selectedButtonText: {
+        color: 'black',
+        fontWeight: '500',
+    },
+    button2: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 4,
+        marginHorizontal: 4,
+        alignItems: 'center',
+    },
+    buttonText2: {
+        color: 'black',
+        fontWeight: 'bold',
+        fontSize: 12,
+    },
+    splitBlockL: {
+        flex: 1,
+        marginRight: 5,
+    },
+    splitBlockR: {
+        flex: 1,
+        marginLeft: 5,
     },
 });
