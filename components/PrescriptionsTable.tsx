@@ -22,6 +22,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Notifications from 'expo-notifications';
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 import {DateService} from "@/components/services/DateService";
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, {SharedValue, useAnimatedStyle} from 'react-native-reanimated';
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -146,8 +149,8 @@ export const PrescriptionsTable = () => {
                         const newItem: PrescriptionRecord = {
                             ...p,
                             id: Date.now().toString(),
-                            taken: 0,
-                            skipped: 0,
+                            taken: [],
+                            skipped: [],
                             reminderTimes: [],
                             startAt: new Date(p.createdAt),
                             endAt: endAt
@@ -297,39 +300,83 @@ export const PrescriptionsTable = () => {
     const TableHeader: React.FC = () => (
         <View style={styles.headerRow}>
             <Text style={[styles.headerCell, styles.nameColumn]}>Name</Text>
-            <Text style={[styles.headerCell, styles.reminderColumn]}>Reminder</Text>
-            <Text style={[styles.headerCell, styles.actionColumn]}>Action</Text>
+            <Text style={[styles.headerCell, styles.subColumn]}>Reminder</Text>
+            <Text style={[styles.headerCell, styles.subColumn]}>Taken</Text>
+            <Text style={[styles.headerCell, styles.subColumn]}>Skipped</Text>
         </View>
     );
 
     // Render item for list
-    const renderItem = (item: PrescriptionRecord, index: number): React.ReactElement => (
-        <View style={styles.row} key={index}>
-            <Text style={[styles.cell, styles.nameColumn]}>{item.name}</Text>
-            <TouchableOpacity
-                style={[styles.cell, styles.reminderColumn]}
-                onPress={() => handleEdit(item)}
-            >
-                <Text style={styles.reminderSubtext}>
-                    {item.reminderTimes.map(time => DateService.formatTimeForDisplay(time)).join(', ')}
-                </Text>
-            </TouchableOpacity>
-            <View style={[styles.cell, styles.actionColumn, styles.buttonContainer]}>
-                <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => handleEdit(item)}
+    const renderItem = (item: PrescriptionRecord, index: number): React.ReactElement => {
+
+        function RightAction(prog: SharedValue<number>, drag: SharedValue<number>) {
+            const styleAnimation = useAnimatedStyle(() => {
+                return {
+                    transform: [{translateX: drag.value + 50}],
+                };
+            });
+            return (
+                <View style={{
+                    backgroundColor: 'red',
+                    width: '100%',
+                    justifyContent: "center",
+                    alignItems: "flex-end"
+                }}>
+                    <Animated.View style={styleAnimation}>
+                        <TouchableOpacity
+                            onPress={() => handleDelete(item.id)}
+                        >
+                            <Ionicons name="trash" size={25} color="white"/>
+                        </TouchableOpacity>
+                    </Animated.View>
+                </View>
+            );
+        }
+
+        return (
+            <View key={index}>
+                <ReanimatedSwipeable friction={2}
+                                     enableTrackpadTwoFingerGesture
+                                     rightThreshold={50}
+                                     overshootRight={false}
+                                     overshootLeft={false}
+                                     renderRightActions={RightAction}
                 >
-                    <Text style={styles.buttonText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDelete(item.id)}
-                >
-                    <Text style={styles.buttonText}>Delete</Text>
-                </TouchableOpacity>
+                    <View style={styles.row}>
+                        <TouchableOpacity
+                            style={[styles.cell, styles.nameColumn]}
+                            onPress={() => handleEdit(item)}
+                        >
+                            <Text style={[styles.cell, styles.nameColumn]}>{item.name}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.cell, styles.subColumn]}
+                            onPress={() => handleEdit(item)}
+                        >
+                            <Text style={styles.reminderSubtext}>
+                                {item.reminderTimes.map(time => DateService.formatTimeForDisplay(time)).join(', ')}
+                            </Text>
+                        </TouchableOpacity>
+                        <View
+                            style={[styles.cell, styles.subColumn]}
+                        >
+                            <Text style={[styles.cell, styles.nameColumn, {color: "green"}]}>
+                                {item.taken.length}
+                            </Text>
+                        </View>
+                        <View
+                            style={[styles.cell, styles.subColumn]}
+                        >
+                            <Text style={[styles.cell, styles.nameColumn, {color: "red"}]}>
+                                {item.skipped.length}
+                            </Text>
+                        </View>
+                    </View>
+                </ReanimatedSwipeable>
+                <View style={styles.separator}/>
             </View>
-        </View>
-    );
+        );
+    }
 
     // Add this Modal component to your render function
     const LoadingModal = () => (
@@ -375,7 +422,9 @@ export const PrescriptionsTable = () => {
                 <TableHeader/>
             </View>
 
-            {PrescriptionService.getNotExpiredPrescriptions().map((p, i) => renderItem(p, i))}
+            <GestureHandlerRootView>
+                {PrescriptionService.getNotExpiredPrescriptions().map((p, i) => renderItem(p, i))}
+            </GestureHandlerRootView>
 
             <RenderExpire/>
 
@@ -475,32 +524,6 @@ export const PrescriptionsTable = () => {
                                     onChange={(_, theDate: Date | undefined) => setEditedValues({
                                         ...editedValues,
                                         endAt: new Date(theDate ? theDate : editedValues.endAt)
-                                    })}
-                                />
-                            </View>
-                        </View>
-                        <View style={[styles.buttonContainer, {marginTop: 15}]}>
-                            <View style={styles.splitBlockL}>
-                                <Text style={styles.inputLabel}>Taken:</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    keyboardType='numeric'
-                                    value={editedValues.taken.toString()}
-                                    onChangeText={(text: string) => setEditedValues({
-                                        ...editedValues,
-                                        taken: text ? parseInt(text) : 0
-                                    })}
-                                />
-                            </View>
-                            <View style={styles.splitBlockR}>
-                                <Text style={styles.inputLabel}>Skip:</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    keyboardType='numeric'
-                                    value={editedValues.skipped.toString()}
-                                    onChangeText={(text: string) => setEditedValues({
-                                        ...editedValues,
-                                        skipped: text ? parseInt(text) : 0
                                     })}
                                 />
                             </View>
@@ -620,8 +643,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: 'white',
         padding: 10,
-        marginVertical: 2,
-        borderRadius: 5,
         alignItems: 'center',
     },
     cell: {
@@ -631,13 +652,7 @@ const styles = StyleSheet.create({
     nameColumn: {
         flex: 2,
     },
-    reminderColumn: {
-        flex: 1.5,
-    },
-    noteColumn: {
-        flex: 3,
-    },
-    actionColumn: {
+    subColumn: {
         flex: 1.5,
     },
     buttonContainer: {
@@ -646,12 +661,6 @@ const styles = StyleSheet.create({
     },
     editButton: {
         backgroundColor: '#28a745',
-        padding: 6,
-        borderRadius: 5,
-        marginHorizontal: 2,
-    },
-    deleteButton: {
-        backgroundColor: '#dc3545',
         padding: 6,
         borderRadius: 5,
         marginHorizontal: 2,
@@ -788,9 +797,6 @@ const styles = StyleSheet.create({
         color: '#28a745',
         marginLeft: 8,
     },
-    reminderText: {
-        fontSize: 14,
-    },
     reminderSubtext: {
         fontSize: 12,
         color: '#666',
@@ -826,5 +832,15 @@ const styles = StyleSheet.create({
     splitBlockR: {
         flex: 1,
         marginLeft: 5,
+    },
+    rightDelete: {
+        backgroundColor: 'red',
+        width: '100%',
+        alignItems: "flex-start"
+    },
+    separator: {
+        height: 1,
+        backgroundColor: 'gray',
+        width: '100%',
     },
 });

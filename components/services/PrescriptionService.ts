@@ -73,8 +73,14 @@ export class PrescriptionService extends AbstractAsyncService {
         const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
 
         if (thePrescription) {
-            // Increment taken count
-            thePrescription.taken += 1;
+            const timeParts: string[] = notificationId.split("_");
+
+            // Get the date time that the medication is taken
+            const dateTaken: Date = new Date();
+            dateTaken.setHours(Number(timeParts[1]), Number(timeParts[2]), 0, 0);
+
+            // Add date time to taken list
+            thePrescription.taken.push(dateTaken);
 
             // Save to persistent storage
             await UserDataService.save();
@@ -90,8 +96,14 @@ export class PrescriptionService extends AbstractAsyncService {
         const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
 
         if (thePrescription) {
-            // Increment skipped count
-            thePrescription.skipped += 1;
+            const timeParts: string[] = notificationId.split("_");
+
+            // Get the date time that the medication is skipped
+            const dateTaken: Date = new Date();
+            dateTaken.setHours(Number(timeParts[1]), Number(timeParts[2]), 0, 0);
+
+            // Add date time to skipped list
+            thePrescription.skipped.push(dateTaken);
 
             // Save to persistent storage
             await UserDataService.save();
@@ -108,8 +120,8 @@ export class PrescriptionService extends AbstractAsyncService {
             dosage: "",
             type: "",
             food: 0,
-            taken: 0,
-            skipped: 0,
+            taken: [],
+            skipped: [],
             reminderTimes: [],
             startAt: new Date(),
             endAt: new Date()
@@ -151,7 +163,7 @@ export class PrescriptionService extends AbstractAsyncService {
                     hour: hours,
                     minute: minutes
                 },
-                identifier: `${item.id}_time_${i}`
+                identifier: `${item.id}_${hours}_${minutes}`
             });
         }
     }
