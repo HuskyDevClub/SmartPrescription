@@ -30,4 +30,14 @@ export class DateService {
         const displayHours: number = hours % 12 || 12; // Convert 0 to 12 for 12 AM
         return `${displayHours}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
     };
+
+    // Get current date in YYYY-MM-DD format
+    public static getFormattedDate(date: Date): string {
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    }
 }

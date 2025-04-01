@@ -22,7 +22,7 @@ export const PrescriptionAgenda = () => {
                     let currentDate = new Date(prescription.startAt);
                     while (DateService.isDateSameOrBefore(currentDate, prescription.endAt)) {
                         // format date as YYYY-MM-DD
-                        const dateStr: string = currentDate.toISOString().split('T')[0];
+                        const dateStr: string = DateService.getFormattedDate(currentDate);
 
                         if (!marks[dateStr]) {
                             marks[dateStr] = {
@@ -150,6 +150,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+        marginBottom: 40
     },
     medicationsContainer: {
         marginTop: 20,

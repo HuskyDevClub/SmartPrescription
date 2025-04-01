@@ -309,7 +309,7 @@ export const PrescriptionsTable = () => {
     // Render item for list
     const renderItem = (item: PrescriptionRecord, index: number): React.ReactElement => {
 
-        function RightAction(prog: SharedValue<number>, drag: SharedValue<number>) {
+        function RightAction(_: SharedValue<number>, drag: SharedValue<number>) {
             const styleAnimation = useAnimatedStyle(() => {
                 return {
                     transform: [{translateX: drag.value + 50}],
@@ -611,7 +611,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderRadius: 12,
         padding: 20,
-        margin: 16,
+        marginLeft: 16,
+        marginRight: 16,
         shadowColor: '#000',
         shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.1,
