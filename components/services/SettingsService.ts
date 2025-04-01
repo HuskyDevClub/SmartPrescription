@@ -6,7 +6,13 @@ const NAME: string = "Settings"
 interface SettingsState {
     snoozeTime: number;
     notificationsEnabled: boolean;
-    fontSize: 'small' | 'medium' | 'large';
+    fontSize: FontSizeEnum;
+}
+
+export enum FontSizeEnum {
+    small = 16,
+    medium = 24,
+    large = 32,
 }
 
 export class SettingsService extends AbstractAsyncService {
@@ -14,7 +20,7 @@ export class SettingsService extends AbstractAsyncService {
     public static current: SettingsState = {
         snoozeTime: 5,
         notificationsEnabled: true,
-        fontSize: 'small',
+        fontSize: FontSizeEnum.small,
     };
     private static isInitialized: boolean = false;
 

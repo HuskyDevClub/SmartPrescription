@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
 import Slider from '@react-native-community/slider';
-import {SettingsService} from "@/components/services/SettingsService";
+import {FontSizeEnum, SettingsService} from "@/components/services/SettingsService";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 
 export const SettingsMenu = () => {
@@ -42,7 +42,7 @@ export const SettingsMenu = () => {
                     thumbTintColor="#4B7BEC"
                 />
                 <View style={styles.sliderLabels}>
-                    <Text style={styles.sliderLabel}>minSnoozeTime</Text>
+                    <Text style={styles.sliderLabel}>{minSnoozeTime}</Text>
                     <Text style={styles.sliderLabel}>60</Text>
                 </View>
             </View>
@@ -69,18 +69,18 @@ export const SettingsMenu = () => {
                     <TouchableOpacity
                         style={[
                             styles.fontSizeButton,
-                            SettingsService.current.fontSize === 'small' && styles.fontSizeButtonActive,
+                            SettingsService.current.fontSize === FontSizeEnum.small && styles.fontSizeButtonActive,
                         ]}
                         onPress={async () => {
-                            SettingsService.current.fontSize = "small"
+                            SettingsService.current.fontSize = FontSizeEnum.small
                             await saveChanges()
                         }}
                     >
                         <Text
                             style={[
                                 styles.fontSizeButtonText,
-                                SettingsService.current.fontSize === 'small' && styles.fontSizeButtonTextActive,
-                                {fontSize: 12},
+                                SettingsService.current.fontSize === FontSizeEnum.small && styles.fontSizeButtonTextActive,
+                                {fontSize: FontSizeEnum.small},
                             ]}
                         >
                             Small
@@ -89,18 +89,18 @@ export const SettingsMenu = () => {
                     <TouchableOpacity
                         style={[
                             styles.fontSizeButton,
-                            SettingsService.current.fontSize === 'medium' && styles.fontSizeButtonActive,
+                            SettingsService.current.fontSize === FontSizeEnum.medium && styles.fontSizeButtonActive,
                         ]}
                         onPress={async () => {
-                            SettingsService.current.fontSize = "medium"
+                            SettingsService.current.fontSize = FontSizeEnum.medium
                             await saveChanges()
                         }}
                     >
                         <Text
                             style={[
                                 styles.fontSizeButtonText,
-                                SettingsService.current.fontSize === 'medium' && styles.fontSizeButtonTextActive,
-                                {fontSize: 14},
+                                SettingsService.current.fontSize === FontSizeEnum.medium && styles.fontSizeButtonTextActive,
+                                {fontSize: FontSizeEnum.medium},
                             ]}
                         >
                             Medium
@@ -109,18 +109,18 @@ export const SettingsMenu = () => {
                     <TouchableOpacity
                         style={[
                             styles.fontSizeButton,
-                            SettingsService.current.fontSize === 'large' && styles.fontSizeButtonActive,
+                            SettingsService.current.fontSize === FontSizeEnum.large && styles.fontSizeButtonActive,
                         ]}
                         onPress={async () => {
-                            SettingsService.current.fontSize = "large"
+                            SettingsService.current.fontSize = FontSizeEnum.large
                             await saveChanges()
                         }}
                     >
                         <Text
                             style={[
                                 styles.fontSizeButtonText,
-                                SettingsService.current.fontSize === 'large' && styles.fontSizeButtonTextActive,
-                                {fontSize: 16},
+                                SettingsService.current.fontSize === FontSizeEnum.large && styles.fontSizeButtonTextActive,
+                                {fontSize: FontSizeEnum.large},
                             ]}
                         >
                             Large
