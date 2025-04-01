@@ -1,9 +1,10 @@
 import React, {useEffect, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Calendar} from 'react-native-calendars';
 import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 import {DateService} from "@/components/services/DateService";
+import {UserDataService} from "@/components/services/UserDataService";
 
 export const PrescriptionAgenda = () => {
     const [markedDates, setMarkedDates] = useState<any>({});
@@ -128,11 +129,35 @@ export const PrescriptionAgenda = () => {
                                 {med.dosage}
                             </Text>
                             <View style={styles.timesContainer}>
-                                {med.reminderTimes.map((time, index) => (
-                                    <Text key={index} style={styles.timeChip}>
-                                        {time}
-                                    </Text>
-                                ))}
+                                {med.reminderTimes.map((time, index) => {
+                                    const now: Date = new Date();
+                                    const theTime = new Date(selectedDate);
+                                    const timePrt: string[] = time.split(":");
+                                    theTime.setHours(Number(timePrt[0]), Number(timePrt[1]), 0, 0);
+                                    // Show upcoming taken time
+                                    if (theTime > now) {
+                                        return (
+                                            <Text key={index}
+                                                  style={[styles.timeChip, {backgroundColor: '#E1F5FE'}]}>{time}</Text>
+                                        )
+                                    }
+                                    // Show whether the medicine has been taken or not
+                                    const hasTaken: number = med.taken.indexOf(theTime.toString())
+                                    return (
+                                        <TouchableOpacity key={index}
+                                                          style={[styles.timeChip, {backgroundColor: hasTaken >= 0 ? "lightgreen" : "pink"}]}
+                                                          onPress={async () => {
+                                                              if (hasTaken >= 0) {
+                                                                  med.taken.splice(hasTaken, 1);
+                                                              } else {
+                                                                  med.taken.push(theTime.toString())
+                                                              }
+                                                              await UserDataService.save();
+                                                          }}>
+                                            <Text>{time}</Text>
+                                        </TouchableOpacity>
+                                    )
+                                })}
                             </View>
                         </View>
                     ))
@@ -192,7 +217,6 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     timeChip: {
-        backgroundColor: '#E1F5FE',
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 16,

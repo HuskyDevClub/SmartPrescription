@@ -70,48 +70,95 @@ export class PrescriptionService extends AbstractAsyncService {
     // Handle medication taken action
     public static async handleMedicationTaken(id: string, notificationId: string): Promise<void> {
         // Find prescription with given id
+        await this.init();
         const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
 
-        if (thePrescription) {
-            const timeParts: string[] = notificationId.split("_");
+        // Make sure the prescription exist
+        if (thePrescription === undefined) return;
 
-            // Get the date time that the medication is taken
-            const dateTaken: Date = new Date();
-            dateTaken.setHours(Number(timeParts[1]), Number(timeParts[2]), 0, 0);
+        // Get the date time that the medication is taken
+        const dateTaken: Date = new Date();
+        const timeParts: string[] = notificationId.split("_");
+        dateTaken.setHours(Number(timeParts[1]), Number(timeParts[2]), 0, 0);
 
-            // Add date time to taken list
-            thePrescription.taken.push(dateTaken);
+        // Add date time to taken list
+        const dateStr: string = dateTaken.toString();
+        if (thePrescription.taken.includes(dateStr)) return;
+        thePrescription.taken.push(dateStr);
 
-            // Save to persistent storage
-            await UserDataService.save();
+        // Save to persistent storage
+        await UserDataService.save();
 
-            // Dismiss the notification
-            await Notifications.dismissNotificationAsync(notificationId);
-        }
+        // Dismiss the notification
+        await Notifications.dismissNotificationAsync(notificationId);
     };
 
-    // Handle medication skipped action
-    public static async handleMedicationSkipped(id: string, notificationId: string): Promise<void> {
-        // Find prescription with given id
-        const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
+    public static calculateDosesTakenSoFar(prescription: PrescriptionRecord): number {
+        // Get current date and time
+        const now = new Date();
 
-        if (thePrescription) {
-            const timeParts: string[] = notificationId.split("_");
+        // Get the date of startAt
+        const startAt = new Date(prescription.startAt);
+        startAt.setHours(0, 0, 0, 0);
 
-            // Get the date time that the medication is skipped
-            const dateTaken: Date = new Date();
-            dateTaken.setHours(Number(timeParts[1]), Number(timeParts[2]), 0, 0);
-
-            // Add date time to skipped list
-            thePrescription.skipped.push(dateTaken);
-
-            // Save to persistent storage
-            await UserDataService.save();
-
-            // Dismiss the notification
-            await Notifications.dismissNotificationAsync(notificationId);
+        // If treatment hasn't started yet
+        if (now < startAt) {
+            return 0;
         }
-    };
+
+        // If treatment has ended, use the end date as our cutoff
+        const endAt: Date = new Date(prescription.endAt);
+        const cutoffDate: Date = now < endAt ? now : endAt;
+
+        let totalDosesTaken: number = 0;
+
+        // Loop through each day from start to cutoff
+        const currentDate: Date = new Date(prescription.startAt);
+        // Reset the time part to ensure we're at the beginning of the day
+        currentDate.setHours(0, 0, 0, 0);
+
+        // Create a date representing the day of the cutoff (without time)
+        const cutoffDay = new Date(cutoffDate);
+        cutoffDay.setHours(0, 0, 0, 0);
+
+        while (currentDate <= cutoffDay) {
+            // For previous days, all doses were taken
+            if (currentDate < cutoffDay) {
+                totalDosesTaken += prescription.reminderTimes.length;
+            }
+            // For today, only count doses whose reminder times have passed
+            else {
+                for (const reminderTime of prescription.reminderTimes) {
+                    const [hours, minutes] = reminderTime.split(':').map(Number);
+
+                    const reminderDateTime = new Date(
+                        currentDate.getFullYear(),
+                        currentDate.getMonth(),
+                        currentDate.getDate(),
+                        hours,
+                        minutes
+                    );
+
+                    // Skip if this reminder is before the start time (first day)
+                    if (reminderDateTime < startAt) {
+                        continue;
+                    }
+
+                    // Skip if this reminder is in the future
+                    if (reminderDateTime > now) {
+                        continue;
+                    }
+
+                    totalDosesTaken++;
+                }
+            }
+
+            // Move to the next day
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        return totalDosesTaken;
+    }
 
     public static new(): PrescriptionRecord {
         return {
@@ -121,7 +168,6 @@ export class PrescriptionService extends AbstractAsyncService {
             type: "",
             food: 0,
             taken: [],
-            skipped: [],
             reminderTimes: [],
             startAt: new Date(),
             endAt: new Date()
@@ -155,7 +201,10 @@ export class PrescriptionService extends AbstractAsyncService {
                     body: `Time to take your ${item.name}.`,
                     sound: true,
                     priority: Notifications.AndroidNotificationPriority.HIGH,
-                    data: {id: item.id},
+                    data: {
+                        id: item.id,
+                        notificationId: `${item.id}_${hours}_${minutes}`
+                    },
                     categoryIdentifier: 'medication-reminder',
                 },
                 trigger: {

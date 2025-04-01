@@ -32,7 +32,7 @@ export const PrescriptionsTable = () => {
     const [editedValues, setEditedValues] = useState<PrescriptionRecord>(PrescriptionService.new());
     const [attachments, setAttachments] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
+    const [showTimePicker, setShowTimePicker] = useState<number>(-1);
     const [forceUpdate, setForceUpdate] = useState<boolean>(false);
 
     // Handler for edit button
@@ -49,8 +49,6 @@ export const PrescriptionsTable = () => {
             editItem.type = editedValues.type;
             editItem.dosage = editedValues.dosage;
             editItem.food = editedValues.food;
-            editItem.taken = editedValues.taken;
-            editItem.skipped = editedValues.skipped;
             editItem.reminderTimes = editedValues.reminderTimes;
             editItem.startAt = editedValues.startAt;
             editItem.endAt = editedValues.endAt;
@@ -140,7 +138,6 @@ export const PrescriptionsTable = () => {
             setIsLoading(true);
             try {
                 const result: MedicalPrescription[] = (await HttpService.getImageText(attachments)).data;
-                console.log(result)
                 // Trigger adding a new prescription from the parent component
                 if (result) {
                     for (const p of result) {
@@ -150,7 +147,6 @@ export const PrescriptionsTable = () => {
                             ...p,
                             id: Date.now().toString(),
                             taken: [],
-                            skipped: [],
                             reminderTimes: [],
                             startAt: new Date(p.createdAt),
                             endAt: endAt
@@ -227,9 +223,9 @@ export const PrescriptionsTable = () => {
                 const {id, notificationId} = notification.request.content.data;
 
                 if (actionIdentifier === 'TAKEN_ACTION') {
-                    PrescriptionService.handleMedicationTaken(id, notificationId);
+                    PrescriptionService.handleMedicationTaken(id, notificationId).then(() => setForceUpdate(!forceUpdate));
                 } else if (actionIdentifier === 'SKIP_ACTION') {
-                    PrescriptionService.handleMedicationSkipped(id, notificationId);
+                    // PrescriptionService.handleMedicationSkipped(id, notificationId);
                 }
             });
 
@@ -244,14 +240,17 @@ export const PrescriptionsTable = () => {
     // States for time picker
     const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);
 
+    const getTimeString = (theDate: Date): string => {
+        const hours = theDate.getHours().toString().padStart(2, '0');
+        const minutes = theDate.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+
     // Handle time picker change
     const onTimeChange = (_: any, selectedTime?: Date) => {
-        setShowTimePicker(false);
-        if (selectedTime && editedValues.reminderTimes) {
-            const hours = selectedTime.getHours().toString().padStart(2, '0');
-            const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-            const timeString = `${hours}:${minutes}`;
-
+        setShowTimePicker(-1);
+        if (selectedTime) {
+            const timeString = getTimeString(selectedTime);
             if (editingTimeIndex >= 0 && editingTimeIndex < editedValues.reminderTimes.length) {
                 // Update existing time slot
                 editedValues.reminderTimes[editingTimeIndex] = timeString;
@@ -261,16 +260,10 @@ export const PrescriptionsTable = () => {
         }
     };
 
-    // Add a new time slot
-    const addTimeSlot = (): void => {
-        setEditingTimeIndex(-1); // Indicate we're adding a new slot
-        setShowTimePicker(true);
-    };
-
     // Edit an existing time slot
     const editTimeSlot = (index: number): void => {
         setEditingTimeIndex(index);
-        setShowTimePicker(true);
+        setShowTimePicker(index);
     };
 
     // Remove a time slot
@@ -354,7 +347,7 @@ export const PrescriptionsTable = () => {
                             onPress={() => handleEdit(item)}
                         >
                             <Text style={styles.reminderSubtext}>
-                                {item.reminderTimes.map(time => DateService.formatTimeForDisplay(time)).join(', ')}
+                                {item.reminderTimes.length > 0 ? item.reminderTimes.map(time => DateService.formatTimeForDisplay(time)).join(', ') : "-"}
                             </Text>
                         </TouchableOpacity>
                         <View
@@ -368,7 +361,7 @@ export const PrescriptionsTable = () => {
                             style={[styles.cell, styles.subColumn]}
                         >
                             <Text style={[styles.cell, styles.nameColumn, {color: "red"}]}>
-                                {item.skipped.length}
+                                {PrescriptionService.calculateDosesTakenSoFar(item) - item.taken.length}
                             </Text>
                         </View>
                     </View>
@@ -515,6 +508,7 @@ export const PrescriptionsTable = () => {
                                         ...editedValues,
                                         startAt: new Date(theDate ? theDate : editedValues.startAt)
                                     })}
+                                    maximumDate={new Date(editedValues.endAt)}
                                 />
                             </View>
                             <View style={styles.splitBlockR}>
@@ -525,6 +519,7 @@ export const PrescriptionsTable = () => {
                                         ...editedValues,
                                         endAt: new Date(theDate ? theDate : editedValues.endAt)
                                     })}
+                                    minimumDate={new Date(editedValues.startAt)}
                                 />
                             </View>
                         </View>
@@ -534,9 +529,32 @@ export const PrescriptionsTable = () => {
                         {/* List of existing time slots */}
                         {editedValues.reminderTimes && editedValues.reminderTimes.map((time, idx) => (
                             <View key={idx} style={styles.timeSlotContainer}>
-                                <Text style={styles.timeSlotText}>
-                                    {DateService.formatTimeForDisplay(time)}
-                                </Text>
+                                {/* Time picker (shown when adding/editing a time) */}
+                                {showTimePicker == idx ? (
+                                    <DateTimePicker
+                                        value={(() => {
+                                            const date = new Date();
+                                            if (editingTimeIndex >= 0 &&
+                                                editedValues.reminderTimes &&
+                                                editedValues.reminderTimes[editingTimeIndex]) {
+                                                const [hours, minutes] = editedValues.reminderTimes[editingTimeIndex].split(':').map(Number);
+                                                date.setHours(hours, minutes, 0, 0);
+                                            }
+                                            return date;
+                                        })()}
+                                        mode="time"
+                                        is24Hour={false}
+                                        display="default"
+                                        onChange={onTimeChange}
+                                    />
+                                ) : (
+                                    <TouchableOpacity onPress={() => editTimeSlot(idx)}>
+                                        <Text style={styles.timeSlotText}>
+                                            {DateService.formatTimeForDisplay(time)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
                                 <View style={styles.timeSlotButtons}>
                                     <TouchableOpacity
                                         style={styles.timeSlotEditButton}
@@ -557,31 +575,14 @@ export const PrescriptionsTable = () => {
                         {/* Add new time slot button */}
                         <TouchableOpacity
                             style={styles.addTimeButton}
-                            onPress={addTimeSlot}
+                            onPress={() => {
+                                editedValues.reminderTimes.push(getTimeString(new Date()));
+                                editTimeSlot(editedValues.reminderTimes.length - 1)
+                            }}
                         >
                             <Ionicons name="add-circle" size={20} color="#28a745"/>
                             <Text style={styles.addTimeButtonText}>Add Time Slot</Text>
                         </TouchableOpacity>
-
-                        {/* Time picker (shown when adding/editing a time) */}
-                        {showTimePicker && (
-                            <DateTimePicker
-                                value={(() => {
-                                    const date = new Date();
-                                    if (editingTimeIndex >= 0 &&
-                                        editedValues.reminderTimes &&
-                                        editedValues.reminderTimes[editingTimeIndex]) {
-                                        const [hours, minutes] = editedValues.reminderTimes[editingTimeIndex].split(':').map(Number);
-                                        date.setHours(hours, minutes, 0, 0);
-                                    }
-                                    return date;
-                                })()}
-                                mode="time"
-                                is24Hour={false}
-                                display="default"
-                                onChange={onTimeChange}
-                            />
-                        )}
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -802,6 +803,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
         marginTop: 3,
+        alignSelf: 'center',
     },
     selectedButton: {
         backgroundColor: '#007AFF',
