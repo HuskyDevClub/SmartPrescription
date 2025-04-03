@@ -93,6 +93,45 @@ export class PrescriptionService extends AbstractAsyncService {
         await Notifications.dismissNotificationAsync(notificationId);
     };
 
+    // Handle medication taken action
+    public static async snoozeMedicationTaken(id: string, notificationId: string): Promise<void> {
+        // Find prescription with given id
+        await this.init();
+        const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
+
+        if (thePrescription === undefined) return;
+
+        // Parse the reminder time
+        const [_, hours, minutes, currentSnoozeTime] = notificationId.split('_').map(Number);
+        const minutesNum: number = Number(minutes);
+        const nextSnoozeTimeNum: number = Number(currentSnoozeTime) + minutesNum;
+
+        // Schedule the notification
+        if (nextSnoozeTimeNum <= 60) {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: 'Medication Reminder',
+                    body: `Time to take your ${thePrescription.name}.`,
+                    sound: true,
+                    priority: Notifications.AndroidNotificationPriority.HIGH,
+                    data: {
+                        id: thePrescription.id,
+                        notificationId: `${thePrescription.id}_${hours}_${minutes}_${nextSnoozeTimeNum}`
+                    },
+                    categoryIdentifier: 'medication-reminder',
+                },
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                    seconds: minutesNum * 60
+                },
+                identifier: `${thePrescription.id}_${hours}_${minutes}_${nextSnoozeTimeNum}`
+            });
+        }
+
+        // Dismiss the notification
+        await Notifications.dismissNotificationAsync(notificationId);
+    };
+
     public static calculateDosesTakenSoFar(prescription: PrescriptionRecord): number {
         // Get current date and time
         const now = new Date();
@@ -203,7 +242,7 @@ export class PrescriptionService extends AbstractAsyncService {
                     priority: Notifications.AndroidNotificationPriority.HIGH,
                     data: {
                         id: item.id,
-                        notificationId: `${item.id}_${hours}_${minutes}`
+                        notificationId: `${item.id}_${hours}_${minutes}_0`
                     },
                     categoryIdentifier: 'medication-reminder',
                 },
@@ -212,7 +251,7 @@ export class PrescriptionService extends AbstractAsyncService {
                     hour: hours,
                     minute: minutes
                 },
-                identifier: `${item.id}_${hours}_${minutes}`
+                identifier: `${item.id}_${hours}_${minutes}_0`
             });
         }
     }
@@ -228,6 +267,12 @@ export class PrescriptionService extends AbstractAsyncService {
         }
     };
 
+    // Re-schedule notifications for all prescriptions with reminder times
+    public static async rescheduleAllNotifications(): Promise<void> {
+        await this.cancelAllNotifications();
+        await this.scheduleAllNotifications();
+    }
+
     protected static override getInit(): boolean {
         return this.isInitialized;
     }
@@ -242,8 +287,7 @@ export class PrescriptionService extends AbstractAsyncService {
         this.prescriptionsRef = await UserDataService.try_get(NAME, []);
 
         // Re-schedule notifications for all prescriptions with reminder times
-        await this.cancelAllNotifications();
-        await this.scheduleAllNotifications();
+        await this.rescheduleAllNotifications()
     }
 
     // Cancel all notifications for a medication

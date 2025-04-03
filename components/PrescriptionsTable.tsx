@@ -25,6 +25,7 @@ import {DateService} from "@/components/services/DateService";
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, {SharedValue, useAnimatedStyle} from 'react-native-reanimated';
+import {SettingsService} from "@/components/services/SettingsService";
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -181,6 +182,8 @@ export const PrescriptionsTable = () => {
     // Fetch my prescriptions when the component mounts
     useEffect(() => {
         async function setupNotificationHandlers() {
+            await PrescriptionService.init()
+
             // Request notification permissions
             const {status} = await Notifications.requestPermissionsAsync();
             if (status !== 'granted') {
@@ -196,6 +199,16 @@ export const PrescriptionsTable = () => {
                     options: {
                         isDestructive: false,
                         isAuthenticationRequired: false,
+                        opensAppToForeground: false,
+                    }
+                },
+                {
+                    identifier: 'SNOOZE_ACTION',
+                    buttonTitle: `Snooze for ${SettingsService.current.snoozeTime} min`,
+                    options: {
+                        isDestructive: false,
+                        isAuthenticationRequired: false,
+                        opensAppToForeground: false,
                     }
                 },
                 {
@@ -204,6 +217,7 @@ export const PrescriptionsTable = () => {
                     options: {
                         isDestructive: false,
                         isAuthenticationRequired: false,
+                        opensAppToForeground: false,
                     }
                 }
             ]);
@@ -224,16 +238,20 @@ export const PrescriptionsTable = () => {
 
                 if (actionIdentifier === 'TAKEN_ACTION') {
                     PrescriptionService.handleMedicationTaken(id, notificationId).then(() => setForceUpdate(!forceUpdate));
+                } else if (actionIdentifier === 'SNOOZE_ACTION') {
+                    PrescriptionService.snoozeMedicationTaken(id, notificationId).then(() => setForceUpdate(!forceUpdate));
                 } else if (actionIdentifier === 'SKIP_ACTION') {
-                    // PrescriptionService.handleMedicationSkipped(id, notificationId);
+                    // Dismiss the notification
+                    Notifications.dismissNotificationAsync(notificationId)
                 }
             });
+
+            setForceUpdate(!forceUpdate);
 
             // Cleanup subscription on unmount
             return () => subscription.remove();
         }
 
-        PrescriptionService.init().then(_ => setForceUpdate(!forceUpdate));
         setupNotificationHandlers().then();
     }, []);
 
@@ -282,10 +300,10 @@ export const PrescriptionsTable = () => {
             return (<View/>);
         }
         return (
-            <View>
-                <Text style={[styles.modalTitle, {marginTop: 15}]}>Expired</Text>
+            <GestureHandlerRootView style={{marginTop: 60}}>
+                <Text style={styles.modalTitle}>Expired</Text>
                 {expiredPrescription.map((p, i) => renderItem(p, i))}
-            </View>
+            </GestureHandlerRootView>
         )
     }
 
