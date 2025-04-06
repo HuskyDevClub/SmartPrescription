@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
 import Slider from '@react-native-community/slider';
-import {FontSizeEnum, SettingsService} from "@/components/services/SettingsService";
+import {SettingsService} from "@/components/services/SettingsService";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 
 export const SettingsMenu = () => {
@@ -36,6 +36,7 @@ export const SettingsMenu = () => {
                     onValueChange={async (value) => {
                         SettingsService.current.snoozeTime = value
                         await saveChanges()
+                        await PrescriptionService.rescheduleAllNotifications();
                     }}
                     minimumTrackTintColor="#4B7BEC"
                     maximumTrackTintColor="#ddd"
@@ -55,8 +56,7 @@ export const SettingsMenu = () => {
                     onValueChange={async (value) => {
                         await PrescriptionService.setNotificationsEnable(value)
                         setForceUpdate(!forceUpdate);
-                    }
-                    }
+                    }}
                     trackColor={{false: '#ddd', true: '#4B7BEC'}}
                     thumbColor={SettingsService.current.notificationsEnabled ? '#fff' : '#fff'}
                 />
@@ -64,69 +64,15 @@ export const SettingsMenu = () => {
 
             {/* Font Size Selection */}
             <View style={styles.settingItem}>
-                <Text style={styles.settingLabel}>Font size</Text>
-                <View style={styles.fontSizeOptions}>
-                    <TouchableOpacity
-                        style={[
-                            styles.fontSizeButton,
-                            SettingsService.current.fontSize === FontSizeEnum.small && styles.fontSizeButtonActive,
-                        ]}
-                        onPress={async () => {
-                            SettingsService.current.fontSize = FontSizeEnum.small
-                            await saveChanges()
-                        }}
-                    >
-                        <Text
-                            style={[
-                                styles.fontSizeButtonText,
-                                SettingsService.current.fontSize === FontSizeEnum.small && styles.fontSizeButtonTextActive,
-                                {fontSize: FontSizeEnum.small},
-                            ]}
-                        >
-                            Small
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[
-                            styles.fontSizeButton,
-                            SettingsService.current.fontSize === FontSizeEnum.medium && styles.fontSizeButtonActive,
-                        ]}
-                        onPress={async () => {
-                            SettingsService.current.fontSize = FontSizeEnum.medium
-                            await saveChanges()
-                        }}
-                    >
-                        <Text
-                            style={[
-                                styles.fontSizeButtonText,
-                                SettingsService.current.fontSize === FontSizeEnum.medium && styles.fontSizeButtonTextActive,
-                                {fontSize: FontSizeEnum.medium},
-                            ]}
-                        >
-                            Medium
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[
-                            styles.fontSizeButton,
-                            SettingsService.current.fontSize === FontSizeEnum.large && styles.fontSizeButtonActive,
-                        ]}
-                        onPress={async () => {
-                            SettingsService.current.fontSize = FontSizeEnum.large
-                            await saveChanges()
-                        }}
-                    >
-                        <Text
-                            style={[
-                                styles.fontSizeButtonText,
-                                SettingsService.current.fontSize === FontSizeEnum.large && styles.fontSizeButtonTextActive,
-                                {fontSize: FontSizeEnum.large},
-                            ]}
-                        >
-                            Large
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+                <Text style={styles.settingLabel}>Clear all prescriptions</Text>
+                <TouchableOpacity
+                    style={styles.fontSizeButton}
+                    onPress={async () => await PrescriptionService.clear()}
+                >
+                    <Text>
+                        Clear all
+                    </Text>
+                </TouchableOpacity>
             </View>
         </View>
     );

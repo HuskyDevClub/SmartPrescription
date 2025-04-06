@@ -213,6 +213,12 @@ export class PrescriptionService extends AbstractAsyncService {
         }
     }
 
+    // Clear all records
+    public static async clear(): Promise<void> {
+        await UserDataService.delete(NAME)
+        await this.init()
+    }
+
     // Schedule notifications for all reminder times of a medication
     public static async scheduleNotifications(item: PrescriptionRecord): Promise<void> {
         if (!item.reminderTimes || item.reminderTimes.length === 0) return;

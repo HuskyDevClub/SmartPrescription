@@ -29,6 +29,12 @@ export class UserDataService extends AbstractAsyncService {
         await this.save();
     }
 
+    public static async delete(k: string): Promise<void> {
+        await this.init();
+        delete this.VALUES[k];
+        await this.save();
+    }
+
     // Save the config file
     public static async save(): Promise<void> {
         try {
