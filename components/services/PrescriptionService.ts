@@ -216,7 +216,12 @@ export class PrescriptionService extends AbstractAsyncService {
     // Clear all records
     public static async clear(): Promise<void> {
         await UserDataService.delete(NAME)
+        this.setInit(false)
         await this.init()
+    }
+
+    public static notEmpty(): boolean {
+        return this.prescriptionsRef.length > 0;
     }
 
     // Schedule notifications for all reminder times of a medication

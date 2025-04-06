@@ -1,19 +1,30 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Calendar} from 'react-native-calendars';
 import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 import {DateService} from "@/components/services/DateService";
 import {UserDataService} from "@/components/services/UserDataService";
+import {useFocusEffect} from "expo-router";
 
 export const PrescriptionAgenda = () => {
     const [markedDates, setMarkedDates] = useState<any>({});
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [dailyMedications, setDailyMedications] = useState<PrescriptionRecord[]>([]);
+    const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
+    const [updateFlag, setUpdateFlag] = useState<boolean>(false);
+
+    useFocusEffect(
+        useCallback(() => {
+            setUpdateFlag(prevState => !prevState)
+            return () => {
+            };
+        }, [])
+    );
 
     useEffect(() => {
         // Function to fetch and update data
-        const updateData = () => {
+        async function updateData(): Promise<void> {
             PrescriptionService.init().then(_ => {
                 // Generate marked dates from prescriptions
                 const marks: any = {};
@@ -49,17 +60,12 @@ export const PrescriptionAgenda = () => {
                 // Update daily medications for the selected date
                 updateDailyMedications(selectedDate);
             });
-        };
+        }
 
         // Initial data fetch
-        updateData();
+        updateData().then();
 
-        // Set up interval to run every second (1000ms)
-        const intervalId = setInterval(updateData, 1000);
-
-        // Clean up interval when component unmounts or when dependencies change
-        return () => clearInterval(intervalId);
-    }, [selectedDate]); // selectedDate is still a dependency for updateDailyMedications
+    }, [updateFlag]);
 
     // Update medications for the selected date
     const updateDailyMedications = (selectedDate: Date) => {
@@ -153,6 +159,7 @@ export const PrescriptionAgenda = () => {
                                                                   med.taken.push(theTime.toString())
                                                               }
                                                               await UserDataService.save();
+                                                              setRefreshFlag(!refreshFlag);
                                                           }}>
                                             <Text>{time}</Text>
                                         </TouchableOpacity>

@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {MedicalPrescription, PrescriptionRecord} from "@/components/models/MedicalPrescription";
 import {
     ActivityIndicator,
@@ -26,6 +26,7 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, {SharedValue, useAnimatedStyle} from 'react-native-reanimated';
 import {SettingsService} from "@/components/services/SettingsService";
+import {useFocusEffect} from "expo-router";
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -34,7 +35,8 @@ export const PrescriptionsTable = () => {
     const [attachments, setAttachments] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [showTimePicker, setShowTimePicker] = useState<number>(-1);
-    const [forceUpdate, setForceUpdate] = useState<boolean>(false);
+    const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
+    const [updateFlag, setUpdateFlag] = useState<boolean>(false);
 
     // Handler for edit button
     const handleEdit = (item: PrescriptionRecord): void => {
@@ -191,7 +193,14 @@ export const PrescriptionsTable = () => {
         }
     }
 
-    // Fetch my prescriptions when the component mounts
+    useFocusEffect(
+        useCallback(() => {
+            setUpdateFlag(prevState => !prevState)
+            return () => {
+            };
+        }, [])
+    );
+
     useEffect(() => {
         async function setupNotificationHandlers() {
             await PrescriptionService.init()
@@ -249,23 +258,23 @@ export const PrescriptionsTable = () => {
                 const {id, notificationId} = notification.request.content.data;
 
                 if (actionIdentifier === 'TAKEN_ACTION') {
-                    PrescriptionService.handleMedicationTaken(id, notificationId).then(() => setForceUpdate(!forceUpdate));
+                    PrescriptionService.handleMedicationTaken(id, notificationId).then(() => setRefreshFlag(!refreshFlag));
                 } else if (actionIdentifier === 'SNOOZE_ACTION') {
-                    PrescriptionService.snoozeMedicationTaken(id, notificationId).then(() => setForceUpdate(!forceUpdate));
+                    PrescriptionService.snoozeMedicationTaken(id, notificationId).then(() => setRefreshFlag(!refreshFlag));
                 } else if (actionIdentifier === 'SKIP_ACTION') {
                     // Dismiss the notification
                     Notifications.dismissNotificationAsync(notificationId)
                 }
             });
 
-            setForceUpdate(!forceUpdate);
+            setRefreshFlag(!refreshFlag);
 
             // Cleanup subscription on unmount
             return () => subscription.remove();
         }
 
         setupNotificationHandlers().then();
-    }, []);
+    }, [updateFlag]);
 
     // States for time picker
     const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);

@@ -1,23 +1,55 @@
-import React, {useEffect, useState} from 'react';
-import {StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {Alert, StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
 import Slider from '@react-native-community/slider';
 import {SettingsService} from "@/components/services/SettingsService";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
+import {useFocusEffect} from "expo-router";
 
 export const SettingsMenu = () => {
 
     const minSnoozeTime: number = 5;
 
-    const [forceUpdate, setForceUpdate] = useState<boolean>(false);
+    const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
+    const [updateFlag, setUpdateFlag] = useState<boolean>(false);
 
     const saveChanges = async () => {
         await SettingsService.save();
-        setForceUpdate(!forceUpdate);
+        setRefreshFlag(!refreshFlag);
     };
 
+    useFocusEffect(
+        useCallback(() => {
+            setUpdateFlag(prevState => !prevState)
+            return () => {
+            };
+        }, [])
+    );
+
     useEffect(() => {
-        SettingsService.init().then(_ => setForceUpdate(!forceUpdate))
-    }, [])
+        async function init(): Promise<void> {
+            await SettingsService.init()
+            setRefreshFlag(!refreshFlag);
+        }
+
+        init().then()
+    }, [updateFlag])
+
+    // Handler for clear all button
+    const handleClearAll = async (): Promise<void> => {
+        // Alert user before removal
+        Alert.alert('Warning', 'Are you sure you want to delete all prescriptions?', [
+            {
+                text: 'Cancel',
+                style: 'cancel',
+            },
+            {
+                text: 'Confirm', onPress: async () => {
+                    await PrescriptionService.clear()
+                    setRefreshFlag(!refreshFlag);
+                }
+            },
+        ]);
+    };
 
     return (
         <View style={styles.container}>
@@ -55,7 +87,7 @@ export const SettingsMenu = () => {
                     value={SettingsService.current.notificationsEnabled}
                     onValueChange={async (value) => {
                         await PrescriptionService.setNotificationsEnable(value)
-                        setForceUpdate(!forceUpdate);
+                        setRefreshFlag(!refreshFlag);
                     }}
                     trackColor={{false: '#ddd', true: '#4B7BEC'}}
                     thumbColor={SettingsService.current.notificationsEnabled ? '#fff' : '#fff'}
@@ -63,17 +95,17 @@ export const SettingsMenu = () => {
             </View>
 
             {/* Font Size Selection */}
-            <View style={styles.settingItem}>
+            {PrescriptionService.notEmpty() && <View style={styles.settingItem}>
                 <Text style={styles.settingLabel}>Clear all prescriptions</Text>
                 <TouchableOpacity
                     style={styles.fontSizeButton}
-                    onPress={async () => await PrescriptionService.clear()}
+                    onPress={handleClearAll}
                 >
                     <Text>
                         Clear all
                     </Text>
                 </TouchableOpacity>
-            </View>
+            </View>}
         </View>
     );
 };
