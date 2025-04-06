@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^.*$": {
+      "type": "object",
+      "required": [
+        "name",
+        "dosage",
+        "type",
+        "food",
+        "route",
+        "days",
+        "frequency"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "dosage": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "food": {
+          "type": "number"
+        },
+        "route": {
+          "type": "string"
+        },
+        "days": {
+          "type": "number"
+        },
+        "frequency": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

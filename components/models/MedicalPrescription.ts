@@ -9,7 +9,6 @@ export interface MedicalPrescription extends AbstractMedicalPrescription {
     route: string;
     days: number;
     frequency: string;
-    createdAt: string;
 }
 
 export interface PrescriptionRecord extends AbstractMedicalPrescription {

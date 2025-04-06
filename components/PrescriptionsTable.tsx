@@ -16,7 +16,7 @@ import {
 import {UserDataService} from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
 import {ImagePickerResult} from "expo-image-picker";
-import {HttpService} from "@/components/services/HttpService";
+import {AiService} from "@/components/services/AiService";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Notifications from 'expo-notifications';
@@ -130,7 +130,7 @@ export const PrescriptionsTable = () => {
             for (let i = 0; i < result.assets.length; i++) {
                 const theBase64 = result.assets[i].base64;
                 if (theBase64) {
-                    attachments.push(theBase64)
+                    attachments.push('data:image/jpeg;base64,' + theBase64)
                 }
             }
         }
@@ -138,18 +138,30 @@ export const PrescriptionsTable = () => {
             // Show loading spinner
             setIsLoading(true);
             try {
-                const result: MedicalPrescription[] = (await HttpService.getImageText(attachments)).data;
+                const response = await AiService.getImageText(attachments)
+                if (__DEV__) {
+                    console.log(response.body)
+                    if (response.body.error) {
+                        console.log(response.body.error)
+                    } else {
+                        console.log(response.body.choices[0].message?.content)
+                    }
+                }
+                const result: Record<string, MedicalPrescription> = JSON.parse(response.body.choices[0].message?.content)
                 // Trigger adding a new prescription from the parent component
                 if (result) {
-                    for (const p of result) {
-                        const endAt: Date = new Date(p.createdAt);
+                    for (const p of Object.values(result)) {
+                        const endAt: Date = new Date();
                         endAt.setDate(endAt.getDate() + p.days);
                         const newItem: PrescriptionRecord = {
-                            ...p,
+                            name: p.name,
+                            dosage: p.dosage,
+                            type: p.type,
+                            food: Number(p.food),
                             id: Date.now().toString(),
                             taken: [],
                             reminderTimes: [],
-                            startAt: new Date(p.createdAt),
+                            startAt: new Date(),
                             endAt: endAt
                         };
                         // Add time according to Frequency
