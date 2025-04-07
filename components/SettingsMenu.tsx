@@ -4,6 +4,8 @@ import Slider from '@react-native-community/slider';
 import {SettingsService} from "@/components/services/SettingsService";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 import {useFocusEffect} from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import {DateService} from "@/components/services/DateService";
 
 export const SettingsMenu = () => {
 
@@ -94,6 +96,68 @@ export const SettingsMenu = () => {
                 />
             </View>
 
+            {/* Notifications Toggle */}
+            <View style={styles.settingItem}>
+                <Text style={styles.settingLabel}>Customize times</Text>
+                <View style={styles.rowContainer}>
+                    <Text style={styles.subSettingLabel}>Breakfast</Text>
+                    <DateTimePicker
+                        value={(() => {
+                            const date = new Date();
+                            const [hours, minutes] = SettingsService.current.breakfastTime.split(':').map(Number);
+                            date.setHours(hours, minutes, 0, 0);
+                            return date
+                        })()}
+                        mode="time"
+                        is24Hour={false}
+                        display="default"
+                        onChange={(_: any, selectedTime?: Date) => {
+                            if (selectedTime) {
+                                SettingsService.current.breakfastTime = DateService.getTime(selectedTime);
+                            }
+                        }}
+                    />
+                </View>
+                <View style={styles.rowContainer}>
+                    <Text style={styles.subSettingLabel}>Lunch</Text>
+                    <DateTimePicker
+                        value={(() => {
+                            const date = new Date();
+                            const [hours, minutes] = SettingsService.current.lunchTime.split(':').map(Number);
+                            date.setHours(hours, minutes, 0, 0);
+                            return date
+                        })()}
+                        mode="time"
+                        is24Hour={false}
+                        display="default"
+                        onChange={(_: any, selectedTime?: Date) => {
+                            if (selectedTime) {
+                                SettingsService.current.lunchTime = DateService.getTime(selectedTime);
+                            }
+                        }}
+                    />
+                </View>
+                <View style={styles.rowContainer}>
+                    <Text style={styles.subSettingLabel}>Dinner</Text>
+                    <DateTimePicker
+                        value={(() => {
+                            const date = new Date();
+                            const [hours, minutes] = SettingsService.current.dinnerTime.split(':').map(Number);
+                            date.setHours(hours, minutes, 0, 0);
+                            return date
+                        })()}
+                        mode="time"
+                        is24Hour={false}
+                        display="default"
+                        onChange={(_: any, selectedTime?: Date) => {
+                            if (selectedTime) {
+                                SettingsService.current.dinnerTime = DateService.getTime(selectedTime);
+                            }
+                        }}
+                    />
+                </View>
+            </View>
+
             {/* Font Size Selection */}
             {PrescriptionService.notEmpty() && <View style={styles.settingItem}>
                 <Text style={styles.settingLabel}>Clear all prescriptions</Text>
@@ -178,5 +242,16 @@ const styles = StyleSheet.create({
     },
     fontSizeButtonTextActive: {
         color: '#fff',
-    }
+    },
+    rowContainer: {
+        flexDirection: 'row',
+        justifyContent: "space-between",
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    subSettingLabel: {
+        fontSize: 16,
+        color: '#333',
+        marginBottom: 8,
+    },
 });

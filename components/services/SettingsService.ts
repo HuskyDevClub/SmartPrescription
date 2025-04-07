@@ -6,21 +6,20 @@ const NAME: string = "Settings"
 interface SettingsState {
     snoozeTime: number;
     notificationsEnabled: boolean;
-    fontSize: FontSizeEnum;
+    breakfastTime: string;
+    lunchTime: string;
+    dinnerTime: string;
 }
 
-export enum FontSizeEnum {
-    small = 16,
-    medium = 24,
-    large = 32,
-}
 
 export class SettingsService extends AbstractAsyncService {
 
     public static current: SettingsState = {
         snoozeTime: 5,
         notificationsEnabled: true,
-        fontSize: FontSizeEnum.small,
+        breakfastTime: "8:00",
+        lunchTime: "13:00",
+        dinnerTime: "18:00"
     };
     private static isInitialized: boolean = false;
 
@@ -30,7 +29,7 @@ export class SettingsService extends AbstractAsyncService {
 
     protected static override async initialize(): Promise<void> {
         // Get ref from user data
-        this.current = await UserDataService.try_get(NAME, this.current);
+        this.current = {...this.current, ...await UserDataService.try_get(NAME, {})};
     }
 
     protected static override getInit(): boolean {

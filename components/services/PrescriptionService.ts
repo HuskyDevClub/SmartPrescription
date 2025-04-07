@@ -167,8 +167,8 @@ export class PrescriptionService extends AbstractAsyncService {
             }
             // For today, only count doses whose reminder times have passed
             else {
-                for (const reminderTime of prescription.reminderTimes) {
-                    const [hours, minutes] = reminderTime.split(':').map(Number);
+                for (const reminderTimeObj of prescription.reminderTimes) {
+                    const [hours, minutes] = reminderTimeObj.time.split(':').map(Number);
 
                     const reminderDateTime = new Date(
                         currentDate.getFullYear(),
@@ -240,9 +240,8 @@ export class PrescriptionService extends AbstractAsyncService {
 
         // Schedule a notification for each reminder time
         for (let i = 0; i < item.reminderTimes.length; i++) {
-            const reminderTime = item.reminderTimes[i];
             // Parse the reminder time
-            const [hours, minutes] = reminderTime.split(':').map(Number);
+            const [hours, minutes] = item.reminderTimes[i].time.split(':').map(Number);
 
             // Schedule the notification
             await Notifications.scheduleNotificationAsync({

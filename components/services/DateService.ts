@@ -40,4 +40,14 @@ export class DateService {
 
         return `${year}-${month}-${day}`;
     }
+
+    // Get time string from date
+    public static getTime(theDate: Date | undefined = undefined): string {
+        if (!theDate) {
+            theDate = new Date();
+        }
+        const hours = theDate.getHours().toString().padStart(2, '0');
+        const minutes = theDate.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
 }

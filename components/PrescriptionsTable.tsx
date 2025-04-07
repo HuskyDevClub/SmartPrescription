@@ -103,7 +103,6 @@ export const PrescriptionsTable = () => {
         // Launch camera for taking photo
         const result: ImagePickerResult = await ImagePicker.launchCameraAsync({
             base64: true,
-            allowsEditing: true,
         });
         // Process image if any photo was taken
         if (!result.canceled) {
@@ -119,7 +118,6 @@ export const PrescriptionsTable = () => {
         // Prompt user for selecting photo
         const result: ImagePickerResult = await ImagePicker.launchImageLibraryAsync({
             base64: true,
-            allowsEditing: true,
         });
         // Process image if any photo was selected
         if (!result.canceled) {
@@ -152,7 +150,8 @@ export const PrescriptionsTable = () => {
                 const result: Record<string, MedicalPrescription> = JSON.parse(response.body.choices[0].message?.content)
                 // Trigger adding a new prescription from the parent component
                 if (result) {
-                    for (const p of Object.values(result)) {
+                    const allPrescriptionsExtracted: MedicalPrescription[] = Object.values(result);
+                    for (const p of allPrescriptionsExtracted) {
                         const endAt: Date = new Date();
                         endAt.setDate(endAt.getDate() + p.days);
                         const newItem: PrescriptionRecord = {
@@ -169,17 +168,27 @@ export const PrescriptionsTable = () => {
                         // Add time according to Frequency
                         const frequencyTable: string[] = p.frequency.split("-")
                         if (frequencyTable.at(0) == "1") {
-                            newItem.reminderTimes.push("08:00");
+                            newItem.reminderTimes.push({
+                                time: SettingsService.current.breakfastTime,
+                                label: "Breakfast"
+                            });
                         }
                         if (frequencyTable.at(1) == "1") {
-                            newItem.reminderTimes.push("13:00");
+                            newItem.reminderTimes.push({
+                                time: SettingsService.current.lunchTime,
+                                label: "Lunch"
+                            });
                         }
                         if (frequencyTable.at(2) == "1") {
-                            newItem.reminderTimes.push("18:00");
+                            newItem.reminderTimes.push({
+                                time: SettingsService.current.dinnerTime,
+                                label: "Dinner"
+                            });
                         }
                         // Schedule notifications for new item
                         await PrescriptionService.addPrescription(newItem);
                     }
+                    Alert.alert("Succeed", `In total of ${allPrescriptionsExtracted.length} has been extracted.`);
                 } else {
                     Alert.alert('Invalid Image', 'Please try again!');
                 }
@@ -279,22 +288,15 @@ export const PrescriptionsTable = () => {
     // States for time picker
     const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);
 
-    const getTimeString = (theDate: Date): string => {
-        const hours = theDate.getHours().toString().padStart(2, '0');
-        const minutes = theDate.getMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
-    }
-
     // Handle time picker change
     const onTimeChange = (_: any, selectedTime?: Date) => {
-        setShowTimePicker(-1);
         if (selectedTime) {
-            const timeString = getTimeString(selectedTime);
+            const timeString = DateService.getTime(selectedTime);
             if (editingTimeIndex >= 0 && editingTimeIndex < editedValues.reminderTimes.length) {
                 // Update existing time slot
-                editedValues.reminderTimes[editingTimeIndex] = timeString;
+                editedValues.reminderTimes[editingTimeIndex].time = timeString;
             } else {
-                editedValues.reminderTimes.push(timeString);
+                editedValues.reminderTimes.push({time: timeString, label: ""});
             }
         }
     };
@@ -386,7 +388,7 @@ export const PrescriptionsTable = () => {
                             onPress={() => handleEdit(item)}
                         >
                             <Text style={styles.reminderSubtext}>
-                                {item.reminderTimes.length > 0 ? item.reminderTimes.map(time => DateService.formatTimeForDisplay(time)).join(', ') : "-"}
+                                {item.reminderTimes.length > 0 ? item.reminderTimes.map(timeObj => DateService.formatTimeForDisplay(timeObj.time)).join(', ') : "-"}
                             </Text>
                         </TouchableOpacity>
                         <View
@@ -433,7 +435,7 @@ export const PrescriptionsTable = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>My Pill</Text>
+            <Text style={styles.title}>My pill</Text>
             <View style={styles.headerContainer}>
                 <View style={styles.buttonRow}>
                     <TouchableOpacity style={styles.addButton} onPress={takePrescriptionPhoto}>
@@ -468,7 +470,7 @@ export const PrescriptionsTable = () => {
                 onRequestClose={() => setModalVisible(false)}
             >
                 <SafeAreaView style={styles.centeredView}>
-                    <ScrollView style={styles.modalView}>
+                    <ScrollView style={styles.modalView} automaticallyAdjustKeyboardInsets={true}>
                         <Text style={styles.modalTitle}>{editItem ? 'Edit Item' : 'Add New Item'}</Text>
 
                         <Text style={styles.inputLabel}>Name:</Text>
@@ -478,12 +480,12 @@ export const PrescriptionsTable = () => {
                                 value={editedValues.name}
                                 onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
                             />
-                            <TouchableOpacity
+                            {editedValues.name && <TouchableOpacity
                                 style={{flex: 1, alignItems: 'center'}}
                                 onPress={() => Linking.openURL(`https://www.google.com/search?q=${editedValues.name}`)}
                             >
                                 <Ionicons name="link" size={28} color="blue"/>
-                            </TouchableOpacity>
+                            </TouchableOpacity>}
                         </View>
 
                         <Text style={styles.inputLabel}>Type:</Text>
@@ -566,7 +568,7 @@ export const PrescriptionsTable = () => {
                         <Text style={styles.inputLabel}>Reminder Times:</Text>
 
                         {/* List of existing time slots */}
-                        {editedValues.reminderTimes && editedValues.reminderTimes.map((time, idx) => (
+                        {editedValues.reminderTimes && editedValues.reminderTimes.map((timeObj, idx) => (
                             <View key={idx} style={styles.timeSlotContainer}>
                                 {/* Time picker (shown when adding/editing a time) */}
                                 {showTimePicker == idx ? (
@@ -576,7 +578,7 @@ export const PrescriptionsTable = () => {
                                             if (editingTimeIndex >= 0 &&
                                                 editedValues.reminderTimes &&
                                                 editedValues.reminderTimes[editingTimeIndex]) {
-                                                const [hours, minutes] = editedValues.reminderTimes[editingTimeIndex].split(':').map(Number);
+                                                const [hours, minutes] = editedValues.reminderTimes[editingTimeIndex].time.split(':').map(Number);
                                                 date.setHours(hours, minutes, 0, 0);
                                             }
                                             return date;
@@ -589,18 +591,17 @@ export const PrescriptionsTable = () => {
                                 ) : (
                                     <TouchableOpacity onPress={() => editTimeSlot(idx)}>
                                         <Text style={styles.timeSlotText}>
-                                            {DateService.formatTimeForDisplay(time)}
+                                            {DateService.formatTimeForDisplay(timeObj.time)}
                                         </Text>
                                     </TouchableOpacity>
                                 )}
+                                <TextInput style={styles.timeSlotText}
+                                           placeholder={timeObj.label.length > 0 ? timeObj.label : "\<click to label\>"}
+                                           onChangeText={(text: string) => {
+                                               timeObj.label = text
+                                           }}/>
 
                                 <View style={styles.timeSlotButtons}>
-                                    <TouchableOpacity
-                                        style={styles.timeSlotEditButton}
-                                        onPress={() => editTimeSlot(idx)}
-                                    >
-                                        <Ionicons name="pencil" size={18} color="#007BFF"/>
-                                    </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.timeSlotDeleteButton}
                                         onPress={() => removeTimeSlot(idx)}
@@ -615,7 +616,7 @@ export const PrescriptionsTable = () => {
                         <TouchableOpacity
                             style={styles.addTimeButton}
                             onPress={() => {
-                                editedValues.reminderTimes.push(getTimeString(new Date()));
+                                editedValues.reminderTimes.push({time: DateService.getTime(), label: ""});
                                 editTimeSlot(editedValues.reminderTimes.length - 1)
                             }}
                         >

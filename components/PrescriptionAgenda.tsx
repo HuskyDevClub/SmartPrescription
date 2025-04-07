@@ -135,16 +135,16 @@ export const PrescriptionAgenda = () => {
                                 {med.dosage}
                             </Text>
                             <View style={styles.timesContainer}>
-                                {med.reminderTimes.map((time, index) => {
+                                {med.reminderTimes.map((timeObj, index) => {
                                     const now: Date = new Date();
                                     const theTime = new Date(selectedDate);
-                                    const timePrt: string[] = time.split(":");
+                                    const timePrt: string[] = timeObj.time.split(":");
                                     theTime.setHours(Number(timePrt[0]), Number(timePrt[1]), 0, 0);
                                     // Show upcoming taken time
                                     if (theTime > now) {
                                         return (
                                             <Text key={index}
-                                                  style={[styles.timeChip, {backgroundColor: '#E1F5FE'}]}>{time}</Text>
+                                                  style={[styles.timeChip, {backgroundColor: '#E1F5FE'}]}>{timeObj.label.length > 0 ? timeObj.label : timeObj.time}</Text>
                                         )
                                     }
                                     // Show whether the medicine has been taken or not
@@ -161,7 +161,7 @@ export const PrescriptionAgenda = () => {
                                                               await UserDataService.save();
                                                               setRefreshFlag(!refreshFlag);
                                                           }}>
-                                            <Text>{time}</Text>
+                                            <Text>{timeObj.label.length > 0 ? timeObj.label : timeObj.time}</Text>
                                         </TouchableOpacity>
                                     )
                                 })}

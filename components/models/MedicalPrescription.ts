@@ -14,7 +14,7 @@ export interface MedicalPrescription extends AbstractMedicalPrescription {
 export interface PrescriptionRecord extends AbstractMedicalPrescription {
     id: string;
     taken: string[];
-    reminderTimes: string[]; // Store time in 24-hour format (HH:MM)
+    reminderTimes: ReminderTime[]; // Store time in 24-hour format (HH:MM)
     startAt: Date;
     endAt: Date;
 }
