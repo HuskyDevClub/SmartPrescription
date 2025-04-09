@@ -143,8 +143,9 @@ export const PrescriptionAgenda = () => {
                                     // Show upcoming taken time
                                     if (theTime > now) {
                                         return (
-                                            <Text key={index}
-                                                  style={[styles.timeChip, {backgroundColor: '#E1F5FE'}]}>{timeObj.label.length > 0 ? timeObj.label : timeObj.time}</Text>
+                                            <Text key={index} style={[styles.timeChip, {backgroundColor: '#E1F5FE'}]}>
+                                                {timeObj.label.length > 0 ? `${timeObj.label} (${DateService.formatTimeForDisplay(timeObj.time)})` : DateService.formatTimeForDisplay(timeObj.time)}
+                                            </Text>
                                         )
                                     }
                                     // Show whether the medicine has been taken or not
@@ -161,7 +162,9 @@ export const PrescriptionAgenda = () => {
                                                               await UserDataService.save();
                                                               setRefreshFlag(!refreshFlag);
                                                           }}>
-                                            <Text>{timeObj.label.length > 0 ? timeObj.label : timeObj.time}</Text>
+                                            <Text>
+                                                {timeObj.label.length > 0 ? `${timeObj.label} (${DateService.formatTimeForDisplay(timeObj.time)})` : DateService.formatTimeForDisplay(timeObj.time)}
+                                            </Text>
                                         </TouchableOpacity>
                                     )
                                 })}

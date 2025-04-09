@@ -17,7 +17,7 @@ import {UserDataService} from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
 import {ImagePickerResult} from "expo-image-picker";
 import {AiService} from "@/components/services/AiService";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Notifications from 'expo-notifications';
 import {PrescriptionService} from "@/components/services/PrescriptionService";
@@ -34,7 +34,7 @@ export const PrescriptionsTable = () => {
     const [editedValues, setEditedValues] = useState<PrescriptionRecord>(PrescriptionService.new());
     const [attachments, setAttachments] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [showTimePicker, setShowTimePicker] = useState<number>(-1);
+    const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);
     const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
     const [updateFlag, setUpdateFlag] = useState<boolean>(false);
 
@@ -68,6 +68,7 @@ export const PrescriptionsTable = () => {
             });
         }
         setModalVisible(false);
+        setEditingTimeIndex(-1);
     };
 
     // Handler for delete button
@@ -264,12 +265,12 @@ export const PrescriptionsTable = () => {
             // Set up notification response handler for action buttons
             const subscription = Notifications.addNotificationResponseReceivedListener(response => {
                 const {actionIdentifier, notification} = response;
-                const {id, notificationId} = notification.request.content.data;
+                const {id, notificationId, intendedTakenTime} = notification.request.content.data;
 
                 if (actionIdentifier === 'TAKEN_ACTION') {
                     PrescriptionService.handleMedicationTaken(id, notificationId).then(() => setRefreshFlag(!refreshFlag));
                 } else if (actionIdentifier === 'SNOOZE_ACTION') {
-                    PrescriptionService.snoozeMedicationTaken(id, notificationId).then(() => setRefreshFlag(!refreshFlag));
+                    PrescriptionService.snoozeMedicationTaken(id, notificationId, intendedTakenTime)
                 } else if (actionIdentifier === 'SKIP_ACTION') {
                     // Dismiss the notification
                     Notifications.dismissNotificationAsync(notificationId)
@@ -285,13 +286,12 @@ export const PrescriptionsTable = () => {
         setupNotificationHandlers().then();
     }, [updateFlag]);
 
-    // States for time picker
-    const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);
-
     // Handle time picker change
-    const onTimeChange = (_: any, selectedTime?: Date) => {
-        if (selectedTime) {
-            const timeString = DateService.getTime(selectedTime);
+    const onTimeChange = (event: DateTimePickerEvent, selectedTime?: Date): void => {
+        if (event.type == "dismissed") {
+            setEditingTimeIndex(-1)
+        } else if (event.type == "set" && selectedTime) {
+            const timeString: string = DateService.getTime(selectedTime);
             if (editingTimeIndex >= 0 && editingTimeIndex < editedValues.reminderTimes.length) {
                 // Update existing time slot
                 editedValues.reminderTimes[editingTimeIndex].time = timeString;
@@ -299,12 +299,6 @@ export const PrescriptionsTable = () => {
                 editedValues.reminderTimes.push({time: timeString, label: ""});
             }
         }
-    };
-
-    // Edit an existing time slot
-    const editTimeSlot = (index: number): void => {
-        setEditingTimeIndex(index);
-        setShowTimePicker(index);
     };
 
     // Remove a time slot
@@ -571,7 +565,7 @@ export const PrescriptionsTable = () => {
                         {editedValues.reminderTimes && editedValues.reminderTimes.map((timeObj, idx) => (
                             <View key={idx} style={styles.timeSlotContainer}>
                                 {/* Time picker (shown when adding/editing a time) */}
-                                {showTimePicker == idx ? (
+                                {editingTimeIndex == idx ? (
                                     <DateTimePicker
                                         value={(() => {
                                             const date = new Date();
@@ -589,7 +583,7 @@ export const PrescriptionsTable = () => {
                                         onChange={onTimeChange}
                                     />
                                 ) : (
-                                    <TouchableOpacity onPress={() => editTimeSlot(idx)}>
+                                    <TouchableOpacity onPress={() => setEditingTimeIndex(idx)}>
                                         <Text style={styles.timeSlotText}>
                                             {DateService.formatTimeForDisplay(timeObj.time)}
                                         </Text>
@@ -617,7 +611,7 @@ export const PrescriptionsTable = () => {
                             style={styles.addTimeButton}
                             onPress={() => {
                                 editedValues.reminderTimes.push({time: DateService.getTime(), label: ""});
-                                editTimeSlot(editedValues.reminderTimes.length - 1)
+                                setEditingTimeIndex(editedValues.reminderTimes.length - 1)
                             }}
                         >
                             <Ionicons name="add-circle" size={20} color="#28a745"/>
@@ -654,6 +648,7 @@ const styles = StyleSheet.create({
         padding: 20,
         marginLeft: 16,
         marginRight: 16,
+        marginBottom: 60,
         shadowColor: '#000',
         shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.1,

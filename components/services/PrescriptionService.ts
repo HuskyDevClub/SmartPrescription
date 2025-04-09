@@ -94,20 +94,27 @@ export class PrescriptionService extends AbstractAsyncService {
     };
 
     // Handle medication taken action
-    public static async snoozeMedicationTaken(id: string, notificationId: string): Promise<void> {
-        // Find prescription with given id
-        await this.init();
-        const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
+    public static async snoozeMedicationTaken(id: string, notificationId: string, intendedTakenTime: Date | null): Promise<void> {
+        // The total time that has been snoozed so far
+        let currentSnoozeTime: number = 0
+        // If first time snooze, then note down the time it is intended to be taken
+        if (intendedTakenTime == null) {
+            intendedTakenTime = new Date();
+        } else {
+            // calculate the difference in minutes
+            currentSnoozeTime = Math.floor((new Date().getTime() - intendedTakenTime.getTime()) / 60000);
+        }
 
-        if (thePrescription === undefined) return;
-
-        // Parse the reminder time
-        const [_, hours, minutes, currentSnoozeTime] = notificationId.split('_').map(Number);
-        const minutesNum: number = Number(minutes);
-        const nextSnoozeTimeNum: number = Number(currentSnoozeTime) + minutesNum;
-
-        // Schedule the notification
-        if (nextSnoozeTimeNum <= 60) {
+        // Continue to schedule the notification if less than 60 min
+        if (currentSnoozeTime <= 60) {
+            // Find prescription with given id
+            await this.init();
+            const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
+            // If we cannot find the perception for some reason, then do not reschedule notification
+            if (thePrescription === undefined) return;
+            // The notification identifier
+            const notificationIdentifier: string = `${thePrescription.id}_${intendedTakenTime.getTime()}_snoozed`
+            // Reschedule notification
             await Notifications.scheduleNotificationAsync({
                 content: {
                     title: 'Medication Reminder',
@@ -116,15 +123,16 @@ export class PrescriptionService extends AbstractAsyncService {
                     priority: Notifications.AndroidNotificationPriority.HIGH,
                     data: {
                         id: thePrescription.id,
-                        notificationId: `${thePrescription.id}_${hours}_${minutes}_${nextSnoozeTimeNum}`
+                        notificationId: notificationIdentifier,
+                        intendedTakenTime,
                     },
                     categoryIdentifier: 'medication-reminder',
                 },
                 trigger: {
                     type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                    seconds: minutesNum * 60
+                    seconds: SettingsService.current.snoozeTime * 60
                 },
-                identifier: `${thePrescription.id}_${hours}_${minutes}_${nextSnoozeTimeNum}`
+                identifier: notificationIdentifier
             });
         }
 
@@ -242,7 +250,8 @@ export class PrescriptionService extends AbstractAsyncService {
         for (let i = 0; i < item.reminderTimes.length; i++) {
             // Parse the reminder time
             const [hours, minutes] = item.reminderTimes[i].time.split(':').map(Number);
-
+            // The notification identifier
+            const notificationIdentifier: string = `${item.id}_${hours}_${minutes}`
             // Schedule the notification
             await Notifications.scheduleNotificationAsync({
                 content: {
@@ -252,7 +261,8 @@ export class PrescriptionService extends AbstractAsyncService {
                     priority: Notifications.AndroidNotificationPriority.HIGH,
                     data: {
                         id: item.id,
-                        notificationId: `${item.id}_${hours}_${minutes}_0`
+                        notificationId: notificationIdentifier,
+                        intendedTakenTime: null
                     },
                     categoryIdentifier: 'medication-reminder',
                 },
@@ -261,7 +271,7 @@ export class PrescriptionService extends AbstractAsyncService {
                     hour: hours,
                     minute: minutes
                 },
-                identifier: `${item.id}_${hours}_${minutes}_0`
+                identifier: notificationIdentifier
             });
         }
     }
@@ -297,7 +307,7 @@ export class PrescriptionService extends AbstractAsyncService {
         this.prescriptionsRef = await UserDataService.try_get(NAME, []);
 
         // Re-schedule notifications for all prescriptions with reminder times
-        await this.rescheduleAllNotifications()
+        // await this.rescheduleAllNotifications()
     }
 
     // Cancel all notifications for a medication
