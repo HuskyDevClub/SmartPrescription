@@ -4,8 +4,8 @@ import PrescriptionsSchema from "@/components/models/PrescriptionsSchema.json";
 
 // the model client
 const client = ModelClient(
-    "",
-    new AzureKeyCredential(""),
+    "https://ai-ydlin3083ai106874822382.services.ai.azure.com/models",
+    new AzureKeyCredential("4ZJeJgYGWYIL78KYXZQzRHdVMyljMflBnNlb8ASXU4tuckHlHh1pJQQJ99BCACHYHv6XJ3w3AAAAACOGMtp1"),
 );
 
 // The model that is selected

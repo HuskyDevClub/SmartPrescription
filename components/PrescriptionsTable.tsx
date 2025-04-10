@@ -347,7 +347,8 @@ export const PrescriptionsTable = () => {
                             style={[styles.cell, styles.nameColumn]}
                             onPress={() => handleEdit(item)}
                         >
-                            <Text style={[styles.cell, styles.nameColumn]}>{item.name}</Text>
+                            <Text
+                                style={[styles.cell, styles.nameColumn]}>{item.dosage.length > 0 ? `${item.name} (${item.dosage})` : item.name}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.cell, styles.subColumn]}
@@ -380,7 +381,20 @@ export const PrescriptionsTable = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>My pill</Text>
+            <View style={{flexDirection: 'row'}}>
+                <Text style={styles.title}>My pill</Text>
+                <View style={styles.fabContainer}>
+                    <TouchableOpacity style={styles.fabButton} onPress={takePrescriptionPhoto}>
+                        <Ionicons name="camera" size={40} color="white"/>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.fabButton} onPress={selectPrescriptionPhoto}>
+                        <Ionicons name="image" size={40} color="white"/>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.fabButton} onPress={handleAdd}>
+                        <Ionicons name="add" size={40} color="white"/>
+                    </TouchableOpacity>
+                </View>
+            </View>
 
             {isLoading && <Modal
                 transparent={true}
@@ -486,24 +500,6 @@ export const PrescriptionsTable = () => {
                             </Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={[
-                                styles.button2,
-                                editedValues.food == 0 ? styles.selectedButton : null
-                            ]}
-                            onPress={() => setEditedValues({
-                                ...editedValues,
-                                food: editedValues.food = 0
-                            })}
-                        >
-                            <Text style={[
-                                styles.buttonText2,
-                                editedValues.food === 0 ? styles.selectedButtonText : null
-                            ]}>
-                                Other
-                            </Text>
-                        </TouchableOpacity>
-
                         <View style={[styles.buttonContainer, {marginTop: 15}]}>
                             <View style={styles.splitBlockL}>
                                 <Text style={styles.inputLabel}>Start At:</Text>
@@ -606,17 +602,6 @@ export const PrescriptionsTable = () => {
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
-            <View style={styles.fabContainer}>
-                <TouchableOpacity style={styles.fabButton} onPress={takePrescriptionPhoto}>
-                    <Ionicons name="camera" size={40} color="white"/>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.fabButton} onPress={selectPrescriptionPhoto}>
-                    <Ionicons name="image" size={40} color="white"/>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.fabButton} onPress={handleAdd}>
-                    <Ionicons name="add" size={40} color="white"/>
-                </TouchableOpacity>
-            </View>
         </View>
     )
 }
@@ -643,6 +628,7 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     headerContainer: {
+        marginTop: 10,
         marginBottom: 10,
     },
     headerRow: {
@@ -833,7 +819,8 @@ const styles = StyleSheet.create({
     },
     fabContainer: {
         flexDirection: 'row',
-        alignSelf: 'flex-end',
+        alignItems: 'flex-end',
+        marginLeft: 30,
     },
     fabButton: {
         backgroundColor: '#17a2b8',
@@ -842,7 +829,6 @@ const styles = StyleSheet.create({
         borderRadius: 25,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 10,
         marginLeft: 10,
         shadowColor: '#000',
         shadowOffset: {width: 0, height: 2},
