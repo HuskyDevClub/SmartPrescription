@@ -189,7 +189,7 @@ export const PrescriptionsTable = () => {
                         // Schedule notifications for new item
                         await PrescriptionService.addPrescription(newItem);
                     }
-                    Alert.alert("Succeed", `In total of ${allPrescriptionsExtracted.length} has been extracted.`);
+                    Alert.alert("Succeed", `In total of ${allPrescriptionsExtracted.length} has been extracted. Please double-check the identified medications`);
                 } else {
                     Alert.alert('Invalid Image', 'Please try again!');
                 }
@@ -378,49 +378,30 @@ export const PrescriptionsTable = () => {
         );
     }
 
-    // Add this Modal component to your render function
-    const LoadingModal = () => (
-        <Modal
-            transparent={true}
-            animationType="fade"
-            visible={isLoading}
-            onRequestClose={() => {
-            }} // Required on Android
-        >
-            <View style={styles.modalBackground}>
-                <View style={styles.spinnerContainer}>
-                    <ActivityIndicator
-                        size="large"
-                        color="#0275d8" // Bootstrap primary blue
-                    />
-                    <Text style={styles.loadingText}>Processing prescription...</Text>
-                </View>
-            </View>
-        </Modal>
-    );
-
     return (
         <View style={styles.container}>
             <Text style={styles.title}>My pill</Text>
-            <View style={styles.headerContainer}>
-                <View style={styles.buttonRow}>
-                    <TouchableOpacity style={styles.addButton} onPress={takePrescriptionPhoto}>
-                        <Ionicons name="camera" size={20} color="white"/>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.addButton} onPress={selectPrescriptionPhoto}>
-                        <Ionicons name="image" size={20} color="white"/>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-                        <Text style={styles.addButtonText}>Add</Text>
-                    </TouchableOpacity>
+
+            {isLoading && <Modal
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => {
+                }} // Required on Android
+            >
+                <View style={styles.modalBackground}>
+                    <View style={styles.spinnerContainer}>
+                        <ActivityIndicator
+                            size="large"
+                            color="#0275d8" // Bootstrap primary blue
+                        />
+                        <Text style={styles.loadingText}>Processing prescription...</Text>
+                    </View>
                 </View>
-            </View>
+            </Modal>}
 
-            <LoadingModal/>
-
-            <View style={styles.headerContainer}>
+            {PrescriptionService.notEmpty() && <View style={styles.headerContainer}>
                 <TableHeader/>
-            </View>
+            </View>}
 
             <GestureHandlerRootView>
                 {PrescriptionService.getNotExpiredPrescriptions().map((p, i) => renderItem(p, i))}
@@ -454,13 +435,6 @@ export const PrescriptionsTable = () => {
                             </TouchableOpacity>}
                         </View>
 
-                        <Text style={styles.inputLabel}>Type:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={editedValues.type}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, type: text})}
-                        />
-
                         <Text style={styles.inputLabel}>Dosage:</Text>
                         <TextInput
                             style={styles.input}
@@ -468,44 +442,68 @@ export const PrescriptionsTable = () => {
                             onChangeText={(text: string) => setEditedValues({...editedValues, dosage: text})}
                         />
 
-                        <Text style={styles.inputLabel}>Food:</Text>
-                        <View style={styles.buttonContainer}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.button2,
-                                    editedValues.food === 1 ? styles.selectedButton : null
-                                ]}
-                                onPress={() => setEditedValues({
-                                    ...editedValues,
-                                    food: editedValues.food === 1 ? 0 : 1
-                                })}
-                            >
-                                <Text style={[
-                                    styles.buttonText2,
-                                    editedValues.food === 1 ? styles.selectedButtonText : null
-                                ]}>
-                                    Before Food
-                                </Text>
-                            </TouchableOpacity>
+                        <Text style={styles.inputLabel}>Type:</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={editedValues.type}
+                            onChangeText={(text: string) => setEditedValues({...editedValues, type: text})}
+                        />
 
-                            <TouchableOpacity
-                                style={[
-                                    styles.button2,
-                                    editedValues.food === 2 ? styles.selectedButton : null
-                                ]}
-                                onPress={() => setEditedValues({
-                                    ...editedValues,
-                                    food: editedValues.food === 2 ? 0 : 2
-                                })}
-                            >
-                                <Text style={[
-                                    styles.buttonText2,
-                                    editedValues.food === 2 ? styles.selectedButtonText : null
-                                ]}>
-                                    After Food
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                        <Text style={styles.inputLabel}>Food:</Text>
+                        <TouchableOpacity
+                            style={[
+                                styles.button2,
+                                editedValues.food === 1 ? styles.selectedButton : null
+                            ]}
+                            onPress={() => setEditedValues({
+                                ...editedValues,
+                                food: editedValues.food === 1 ? 0 : 1
+                            })}
+                        >
+                            <Text style={[
+                                styles.buttonText2,
+                                editedValues.food === 1 ? styles.selectedButtonText : null
+                            ]}>
+                                Before Food
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.button2,
+                                editedValues.food === 2 ? styles.selectedButton : null
+                            ]}
+                            onPress={() => setEditedValues({
+                                ...editedValues,
+                                food: editedValues.food === 2 ? 0 : 2
+                            })}
+                        >
+                            <Text style={[
+                                styles.buttonText2,
+                                editedValues.food === 2 ? styles.selectedButtonText : null
+                            ]}>
+                                After Food
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.button2,
+                                editedValues.food == 0 ? styles.selectedButton : null
+                            ]}
+                            onPress={() => setEditedValues({
+                                ...editedValues,
+                                food: editedValues.food = 0
+                            })}
+                        >
+                            <Text style={[
+                                styles.buttonText2,
+                                editedValues.food === 0 ? styles.selectedButtonText : null
+                            ]}>
+                                Other
+                            </Text>
+                        </TouchableOpacity>
+
                         <View style={[styles.buttonContainer, {marginTop: 15}]}>
                             <View style={styles.splitBlockL}>
                                 <Text style={styles.inputLabel}>Start At:</Text>
@@ -608,6 +606,17 @@ export const PrescriptionsTable = () => {
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
+            <View style={styles.fabContainer}>
+                <TouchableOpacity style={styles.fabButton} onPress={takePrescriptionPhoto}>
+                    <Ionicons name="camera" size={40} color="white"/>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.fabButton} onPress={selectPrescriptionPhoto}>
+                    <Ionicons name="image" size={40} color="white"/>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.fabButton} onPress={handleAdd}>
+                    <Ionicons name="add" size={40} color="white"/>
+                </TouchableOpacity>
+            </View>
         </View>
     )
 }
@@ -668,11 +677,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
     },
-    editButton: {
-        backgroundColor: '#28a745',
-        padding: 6,
-        borderRadius: 5,
-        marginHorizontal: 2,
+    buttonContainer2: {
+        justifyContent: 'space-around',
     },
     buttonText: {
         color: 'white',
@@ -731,23 +737,6 @@ const styles = StyleSheet.create({
     buttonCancel: {
         backgroundColor: '#dc3545',
     },
-    addButton: {
-        backgroundColor: '#17a2b8',
-        padding: 10,
-        borderRadius: 5,
-        flex: 1,
-        marginHorizontal: 5,
-        alignItems: 'center',
-    },
-    addButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-    },
     modalBackground: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dim the screen with semi-transparent background
@@ -783,10 +772,6 @@ const styles = StyleSheet.create({
     timeSlotButtons: {
         flexDirection: 'row',
     },
-    timeSlotEditButton: {
-        padding: 5,
-        marginRight: 5,
-    },
     timeSlotDeleteButton: {
         padding: 5,
     },
@@ -821,14 +806,12 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     button2: {
-        flex: 1,
         paddingVertical: 10,
-        paddingHorizontal: 12,
         borderWidth: 1,
         borderColor: '#ccc',
         borderRadius: 4,
-        marginHorizontal: 4,
         alignItems: 'center',
+        marginVertical: 4,
     },
     buttonText2: {
         color: 'black',
@@ -843,14 +826,33 @@ const styles = StyleSheet.create({
         flex: 1,
         marginLeft: 5,
     },
-    rightDelete: {
-        backgroundColor: 'red',
-        width: '100%',
-        alignItems: "flex-start"
-    },
     separator: {
         height: 1,
         backgroundColor: 'gray',
         width: '100%',
+    },
+    fabContainer: {
+        flexDirection: 'row',
+        alignSelf: 'flex-end',
+    },
+    fabButton: {
+        backgroundColor: '#17a2b8',
+        width: 60,
+        height: 60,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 10,
+        marginLeft: 10,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    fabButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14,
     },
 });
