@@ -1,7 +1,7 @@
 import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
 import {UserDataService} from "@/components/services/UserDataService";
 import * as Notifications from 'expo-notifications';
-import {SchedulableTriggerInputTypes} from 'expo-notifications';
+import {NotificationContentInput, SchedulableTriggerInputTypes} from 'expo-notifications';
 import {AbstractAsyncService} from "@/components/services/AbstractAsyncService";
 import {SettingsService} from "@/components/services/SettingsService";
 
@@ -101,6 +101,7 @@ export class PrescriptionService extends AbstractAsyncService {
         if (intendedTakenTime == null) {
             intendedTakenTime = new Date();
         } else {
+            intendedTakenTime = new Date(intendedTakenTime);
             // calculate the difference in minutes
             currentSnoozeTime = Math.floor((new Date().getTime() - intendedTakenTime.getTime()) / 60000);
         }
@@ -116,18 +117,7 @@ export class PrescriptionService extends AbstractAsyncService {
             const notificationIdentifier: string = `${thePrescription.id}_${intendedTakenTime.getTime()}_snoozed`
             // Reschedule notification
             await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: 'Medication Reminder',
-                    body: `Time to take your ${thePrescription.name}.`,
-                    sound: true,
-                    priority: Notifications.AndroidNotificationPriority.HIGH,
-                    data: {
-                        id: thePrescription.id,
-                        notificationId: notificationIdentifier,
-                        intendedTakenTime,
-                    },
-                    categoryIdentifier: 'medication-reminder',
-                },
+                content: this.getNotificationContent(thePrescription, notificationIdentifier, intendedTakenTime),
                 trigger: {
                     type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                     seconds: SettingsService.current.snoozeTime * 60
@@ -265,6 +255,22 @@ export class PrescriptionService extends AbstractAsyncService {
         ]);
     }
 
+    // Get the content for notification
+    public static getNotificationContent(record: PrescriptionRecord, notificationId: string, intendedTakenTime: Date | null): NotificationContentInput {
+        return {
+            title: 'Medication Reminder',
+            body: `Time to take your ${record.name}${record.dosage.length > 0 ? ` (${record.dosage})` : ""}` + (record.food == 0 ? "." : `, take it ${record.food === 1 ? "before" : "after"} food.`),
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: {
+                id: record.id,
+                notificationId,
+                intendedTakenTime
+            },
+            categoryIdentifier: 'medication-reminder',
+        }
+    }
+
     // Schedule notifications for all reminder times of a medication
     public static async scheduleNotifications(item: PrescriptionRecord): Promise<void> {
         if (!item.reminderTimes || item.reminderTimes.length === 0) return;
@@ -287,18 +293,7 @@ export class PrescriptionService extends AbstractAsyncService {
             const notificationIdentifier: string = `${item.id}_${hours}_${minutes}`
             // Schedule the notification
             await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: 'Medication Reminder',
-                    body: `Time to take your ${item.name}.`,
-                    sound: true,
-                    priority: Notifications.AndroidNotificationPriority.HIGH,
-                    data: {
-                        id: item.id,
-                        notificationId: notificationIdentifier,
-                        intendedTakenTime: null
-                    },
-                    categoryIdentifier: 'medication-reminder',
-                },
+                content: this.getNotificationContent(item, notificationIdentifier, null),
                 trigger: {
                     type: SchedulableTriggerInputTypes.DAILY,
                     hour: hours,
