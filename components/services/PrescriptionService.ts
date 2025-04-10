@@ -232,6 +232,39 @@ export class PrescriptionService extends AbstractAsyncService {
         return this.prescriptionsRef.length > 0;
     }
 
+    // Update the buttons available for Notifications
+    public static async updateNotificationButtons(): Promise<void> {
+        await Notifications.setNotificationCategoryAsync('medication-reminder', [
+            {
+                identifier: 'TAKEN_ACTION',
+                buttonTitle: 'Taken',
+                options: {
+                    isDestructive: false,
+                    isAuthenticationRequired: false,
+                    opensAppToForeground: false,
+                }
+            },
+            {
+                identifier: 'SNOOZE_ACTION',
+                buttonTitle: `Snooze for ${SettingsService.current.snoozeTime} min`,
+                options: {
+                    isDestructive: false,
+                    isAuthenticationRequired: false,
+                    opensAppToForeground: false,
+                }
+            },
+            {
+                identifier: 'SKIP_ACTION',
+                buttonTitle: 'Skip',
+                options: {
+                    isDestructive: false,
+                    isAuthenticationRequired: false,
+                    opensAppToForeground: false,
+                }
+            }
+        ]);
+    }
+
     // Schedule notifications for all reminder times of a medication
     public static async scheduleNotifications(item: PrescriptionRecord): Promise<void> {
         if (!item.reminderTimes || item.reminderTimes.length === 0) return;

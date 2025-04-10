@@ -70,6 +70,7 @@ export const SettingsMenu = () => {
                     onValueChange={async (value) => {
                         SettingsService.current.snoozeTime = value
                         await saveChanges()
+                        await PrescriptionService.updateNotificationButtons();
                         await PrescriptionService.rescheduleAllNotifications();
                     }}
                     minimumTrackTintColor="#4B7BEC"

@@ -223,35 +223,7 @@ export const PrescriptionsTable = () => {
             }
 
             // Set notification categories with action buttons
-            await Notifications.setNotificationCategoryAsync('medication-reminder', [
-                {
-                    identifier: 'TAKEN_ACTION',
-                    buttonTitle: 'Taken',
-                    options: {
-                        isDestructive: false,
-                        isAuthenticationRequired: false,
-                        opensAppToForeground: false,
-                    }
-                },
-                {
-                    identifier: 'SNOOZE_ACTION',
-                    buttonTitle: `Snooze for ${SettingsService.current.snoozeTime} min`,
-                    options: {
-                        isDestructive: false,
-                        isAuthenticationRequired: false,
-                        opensAppToForeground: false,
-                    }
-                },
-                {
-                    identifier: 'SKIP_ACTION',
-                    buttonTitle: 'Skip',
-                    options: {
-                        isDestructive: false,
-                        isAuthenticationRequired: false,
-                        opensAppToForeground: false,
-                    }
-                }
-            ]);
+            await PrescriptionService.updateNotificationButtons();
 
             // Set notification handler
             Notifications.setNotificationHandler({
