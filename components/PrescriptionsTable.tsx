@@ -27,6 +27,7 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 import Animated, {SharedValue, useAnimatedStyle} from 'react-native-reanimated';
 import {SettingsService} from "@/components/services/SettingsService";
 import {useFocusEffect} from "expo-router";
+import {RateLimiter} from "@/components/services/RateLimiter";
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -37,6 +38,11 @@ export const PrescriptionsTable = () => {
     const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);
     const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
     const [updateFlag, setUpdateFlag] = useState<boolean>(false);
+
+    // Create a rate limiter instance for API calls - 10 calls per hour (3,600,000 milliseconds)
+    const apiRateLimiter: RateLimiter = new RateLimiter('ai_api_calls', 10, 3600000);
+    // Create rate-limited version of the function
+    const rateLimitedGetImageText = apiRateLimiter.limit(AiService.getImageText);
 
     // Handler for edit button
     const handleEdit = (item: PrescriptionRecord): void => {
@@ -139,9 +145,11 @@ export const PrescriptionsTable = () => {
             // Show loading spinner
             setIsLoading(true);
             try {
-                const response = await AiService.getImageText(attachments)
+                const response = await rateLimitedGetImageText(attachments)
                 if (__DEV__) {
                     console.log(response.body)
+                    console.log(`Time Until Reset: ${await apiRateLimiter.getTimeUntilReset()}`)
+                    console.log(`Remaining Calls: ${await apiRateLimiter.getRemainingCalls()}`)
                     if (response.body.error) {
                         console.log(response.body.error)
                     } else {
