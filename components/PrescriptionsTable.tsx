@@ -51,13 +51,21 @@ export const PrescriptionsTable = () => {
         setModalVisible(true);
     };
 
+    // Handler for cancel changes
+    const closeModal = (): void => {
+        setModalVisible(false);
+        startEditingTimeIndex(-1);
+    };
+
     // Handler for saving changes
     const handleSave = async (): Promise<void> => {
+        startEditingTimeIndex(-1);
         if (editItem) {
             editItem.name = editedValues.name;
             editItem.type = editedValues.type;
             editItem.dosage = editedValues.dosage;
             editItem.food = editedValues.food;
+            editItem.taken = editedValues.taken;
             editItem.reminderTimes = editedValues.reminderTimes;
             editItem.startAt = editedValues.startAt;
             editItem.endAt = editedValues.endAt;
@@ -74,7 +82,6 @@ export const PrescriptionsTable = () => {
             });
         }
         setModalVisible(false);
-        setEditingTimeIndex(-1);
     };
 
     // Handler for delete button
@@ -266,10 +273,64 @@ export const PrescriptionsTable = () => {
         setupNotificationHandlers().then();
     }, [updateFlag]);
 
+    /**
+     * Filters an array of ReminderTime objects to ensure unique time values,
+     * prioritizing entries with non-empty labels when duplicates exist
+     * @param reminderTimes Array of ReminderTime objects
+     * @returns A new array with unique time values
+     */
+    function getUniqueReminderTimes(reminderTimes: ReminderTime[]): ReminderTime[] {
+        const uniqueTimes = new Map<string, ReminderTime>();
+
+        // First pass: add all items to the map, potentially overwriting duplicates
+        reminderTimes.forEach(reminder => {
+            const existingReminder = uniqueTimes.get(reminder.time);
+
+            // If this time doesn't exist in our map yet, add it
+            if (!existingReminder) {
+                uniqueTimes.set(reminder.time, reminder);
+            }
+            // If this time exists but current reminder has a label and existing one doesn't, replace it
+            else if (reminder.label && !existingReminder.label) {
+                uniqueTimes.set(reminder.time, reminder);
+            }
+            // Otherwise keep the existing reminder (first occurrence or one with label)
+        });
+
+        // Convert the map values back to an array
+        return Array.from(uniqueTimes.values());
+    }
+
+    /**
+     * Removes times from the taken array that match the hour and minute of a given ReminderTime
+     * @param taken Array of date strings in format "Tue Apr 15 2025 08:18:00 GMT-0700"
+     * @param reminderTime The ReminderTime object with time in "HH:MM" format
+     * @returns A new array with matching times removed
+     */
+    function removeMatchingTimes(taken: string[], reminderTime: ReminderTime): string[] {
+        // Extract hour and minute from the reminderTime (format "HH:MM")
+        const [reminderHour, reminderMinute] = reminderTime.time.split(':').map(Number);
+
+        // Filter out times that match the reminder's hour and minute
+        return taken.filter(dateStr => {
+            const date = new Date(dateStr);
+            const hour = date.getHours();
+            const minute = date.getMinutes();
+
+            // Return false to filter out matching times (same hour and minute)
+            return !(hour === reminderHour && minute === reminderMinute);
+        });
+    }
+
+    const startEditingTimeIndex = (idx: number): void => {
+        setEditingTimeIndex(idx)
+        editedValues.reminderTimes = getUniqueReminderTimes(editedValues.reminderTimes)
+    }
+
     // Handle time picker change
     const onTimeChange = (event: DateTimePickerEvent, selectedTime?: Date): void => {
         if (event.type == "dismissed") {
-            setEditingTimeIndex(-1)
+            startEditingTimeIndex(-1)
         } else if (event.type == "set" && selectedTime) {
             const timeString: string = DateService.getTime(selectedTime);
             if (editingTimeIndex >= 0 && editingTimeIndex < editedValues.reminderTimes.length) {
@@ -284,6 +345,7 @@ export const PrescriptionsTable = () => {
     // Remove a time slot
     const removeTimeSlot = (index: number): void => {
         if (editedValues.reminderTimes && editedValues.reminderTimes.length > index) {
+            editedValues.taken = removeMatchingTimes(editedValues.taken, editedValues.reminderTimes[index])
             const updatedTimes = [...editedValues.reminderTimes];
             updatedTimes.splice(index, 1);
             setEditedValues({...editedValues, reminderTimes: updatedTimes});
@@ -557,7 +619,7 @@ export const PrescriptionsTable = () => {
                                         onChange={onTimeChange}
                                     />
                                 ) : (
-                                    <TouchableOpacity onPress={() => setEditingTimeIndex(idx)}>
+                                    <TouchableOpacity onPress={() => startEditingTimeIndex(idx)}>
                                         <Text style={styles.timeSlotText}>
                                             {DateService.formatTimeForDisplay(timeObj.time)}
                                         </Text>
@@ -595,7 +657,7 @@ export const PrescriptionsTable = () => {
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 style={[styles.button, styles.buttonCancel]}
-                                onPress={() => setModalVisible(false)}
+                                onPress={closeModal}
                             >
                                 <Text style={styles.buttonText}>Cancel</Text>
                             </TouchableOpacity>

@@ -93,8 +93,8 @@ export const PrescriptionAgenda = () => {
 
     // Handle date selection
     const onDayPress = (day: any) => {
-        const parts = day.dateString.split('-');
-        const theDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const parts: number[] = day.dateString.split('-').map(Number);
+        const theDate = new Date(parts[0], parts[1] - 1, parts[2]);
         setSelectedDate(theDate);
         updateDailyMedications(theDate);
     };
@@ -138,8 +138,8 @@ export const PrescriptionAgenda = () => {
                                 {med.reminderTimes.map((timeObj, index) => {
                                     const now: Date = new Date();
                                     const theTime = new Date(selectedDate);
-                                    const timePrt: string[] = timeObj.time.split(":");
-                                    theTime.setHours(Number(timePrt[0]), Number(timePrt[1]), 0, 0);
+                                    const timePrt: number[] = timeObj.time.split(":").map(Number);
+                                    theTime.setHours(timePrt[0], timePrt[1], 0, 0);
                                     // Show upcoming taken time
                                     if (theTime > now) {
                                         return (
@@ -156,7 +156,7 @@ export const PrescriptionAgenda = () => {
                                                           onPress={async () => {
                                                               if (hasTaken >= 0) {
                                                                   med.taken.splice(hasTaken, 1);
-                                                              } else {
+                                                              } else if (!med.taken.includes(theTime.toString())) {
                                                                   med.taken.push(theTime.toString())
                                                               }
                                                               await UserDataService.save();

@@ -78,8 +78,8 @@ export class PrescriptionService extends AbstractAsyncService {
 
         // Get the date time that the medication is taken
         const dateTaken: Date = new Date();
-        const timeParts: string[] = notificationId.split("_");
-        dateTaken.setHours(Number(timeParts[1]), Number(timeParts[2]), 0, 0);
+        const timeParts: number[] = notificationId.split("_").map(Number);
+        dateTaken.setHours(timeParts[1], timeParts[2], 0, 0);
 
         // Add date time to taken list
         const dateStr: string = dateTaken.toString();
