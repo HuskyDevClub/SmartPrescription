@@ -38,6 +38,7 @@ export const PrescriptionsTable = () => {
     const [editingTimeIndex, setEditingTimeIndex] = useState<number>(-1);
     const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
     const [updateFlag, setUpdateFlag] = useState<boolean>(false);
+    const [abortController, setAbortController] = useState<AbortController | null>(null);
 
     // Create a rate limiter instance for API calls - 10 calls per hour (3,600,000 milliseconds)
     const apiRateLimiter: RateLimiter = new RateLimiter('ai_api_calls', 10, 3600000);
@@ -151,8 +152,26 @@ export const PrescriptionsTable = () => {
         if (attachments.length > 0) {
             // Show loading spinner
             setIsLoading(true);
+
+            // Create a new AbortController instance
+            const controller = new AbortController();
+            setAbortController(controller);
+
             try {
-                const response = await rateLimitedGetImageText(attachments)
+                // Create a cancellable promise
+                const apiCallPromise = rateLimitedGetImageText(attachments);
+
+                // Create a promise that resolves when user cancels
+                const abortPromise = new Promise((_, reject) => {
+                    controller.signal.addEventListener('abort', () => {
+                        reject(new Error('Operation cancelled by user'));
+                    });
+                });
+
+                // Race between the API call and the abort operation
+                const response = await Promise.race([apiCallPromise, abortPromise]);
+
+                // Rest of your existing processing logic...
                 if (__DEV__) {
                     console.log(response.body)
                     console.log(`Time Until Reset: ${await apiRateLimiter.getTimeUntilReset()}`)
@@ -167,52 +186,63 @@ export const PrescriptionsTable = () => {
                 // Trigger adding a new prescription from the parent component
                 if (result) {
                     const allPrescriptionsExtracted: MedicalPrescription[] = Object.values(result);
-                    for (const p of allPrescriptionsExtracted) {
-                        const endAt: Date = new Date();
-                        endAt.setDate(endAt.getDate() + p.days);
-                        const newItem: PrescriptionRecord = {
-                            name: p.name,
-                            dosage: p.dosage,
-                            type: p.type,
-                            food: Number(p.food),
-                            id: Date.now().toString(),
-                            taken: [],
-                            reminderTimes: [],
-                            startAt: new Date(),
-                            endAt: endAt
-                        };
-                        // Add time according to Frequency
-                        const frequencyTable: string[] = p.frequency.split("-")
-                        if (frequencyTable.at(0) == "1") {
-                            newItem.reminderTimes.push({
-                                time: SettingsService.current.breakfastTime,
-                                label: "Breakfast"
-                            });
+                    if (allPrescriptionsExtracted.length > 0) {
+                        for (const p of allPrescriptionsExtracted) {
+                            const endAt: Date = new Date();
+                            endAt.setDate(endAt.getDate() + p.days);
+                            const newItem: PrescriptionRecord = {
+                                name: p.name,
+                                dosage: p.dosage,
+                                type: p.type,
+                                food: Number(p.food),
+                                id: Date.now().toString(),
+                                taken: [],
+                                reminderTimes: [],
+                                startAt: new Date(),
+                                endAt: endAt
+                            };
+                            // Add time according to Frequency
+                            const frequencyTable: string[] = p.frequency.split("-")
+                            if (frequencyTable.at(0) == "1") {
+                                newItem.reminderTimes.push({
+                                    time: SettingsService.current.breakfastTime,
+                                    label: "Breakfast"
+                                });
+                            }
+                            if (frequencyTable.at(1) == "1") {
+                                newItem.reminderTimes.push({
+                                    time: SettingsService.current.lunchTime,
+                                    label: "Lunch"
+                                });
+                            }
+                            if (frequencyTable.at(2) == "1") {
+                                newItem.reminderTimes.push({
+                                    time: SettingsService.current.dinnerTime,
+                                    label: "Dinner"
+                                });
+                            }
+                            // Schedule notifications for new item
+                            await PrescriptionService.addPrescription(newItem);
                         }
-                        if (frequencyTable.at(1) == "1") {
-                            newItem.reminderTimes.push({
-                                time: SettingsService.current.lunchTime,
-                                label: "Lunch"
-                            });
-                        }
-                        if (frequencyTable.at(2) == "1") {
-                            newItem.reminderTimes.push({
-                                time: SettingsService.current.dinnerTime,
-                                label: "Dinner"
-                            });
-                        }
-                        // Schedule notifications for new item
-                        await PrescriptionService.addPrescription(newItem);
+                        Alert.alert("Succeed", `In total of ${allPrescriptionsExtracted.length} medication(s) has been extracted. Please double-check the identified medication(s)!`);
+                    } else {
+                        Alert.alert('Invalid Image', 'Fail to extract any medication!');
                     }
-                    Alert.alert("Succeed", `In total of ${allPrescriptionsExtracted.length} has been extracted. Please double-check the identified medications`);
                 } else {
                     Alert.alert('Invalid Image', 'Please try again!');
                 }
             } catch (error: any) {
-                Alert.alert('Error', error.message);
+                if (error.message === 'Operation cancelled by user') {
+                    Alert.alert('Cancelled', 'The operation was cancelled.');
+                } else if (__DEV__) {
+                    Alert.alert('Error', error.message);
+                } else {
+                    Alert.alert('Invalid Image', 'Please try again!');
+                }
             } finally {
                 // Hide loading spinner regardless of success or failure
                 setIsLoading(false);
+                setAbortController(null);
             }
             setAttachments([])
         }
@@ -452,7 +482,7 @@ export const PrescriptionsTable = () => {
     return (
         <View style={styles.container}>
             <View style={{flexDirection: 'row'}}>
-                <Text style={styles.title}>My pill</Text>
+                <Text style={styles.title}>MyPill</Text>
                 <View style={styles.fabContainer}>
                     <TouchableOpacity style={styles.fabButton} onPress={takePrescriptionPhoto}>
                         <Ionicons name="camera" size={40} color="white"/>
@@ -470,15 +500,28 @@ export const PrescriptionsTable = () => {
                 transparent={true}
                 animationType="fade"
                 onRequestClose={() => {
-                }} // Required on Android
+                    if (abortController) {
+                        abortController.abort();
+                    }
+                }}
             >
                 <View style={styles.modalBackground}>
                     <View style={styles.spinnerContainer}>
                         <ActivityIndicator
                             size="large"
-                            color="#0275d8" // Bootstrap primary blue
+                            color="#0275d8"
                         />
                         <Text style={styles.loadingText}>Processing prescription...</Text>
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={() => {
+                                if (abortController) {
+                                    abortController.abort();
+                                }
+                            }}
+                        >
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>}
@@ -805,6 +848,7 @@ const styles = StyleSheet.create({
         padding: 20,
         alignItems: 'center',
         justifyContent: 'center',
+        minWidth: 200, // Add some minimum width for better layout
     },
     loadingText: {
         marginTop: 10,
@@ -910,5 +954,19 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
         fontSize: 14,
+    },
+    cancelButton: {
+        marginTop: 15,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        backgroundColor: '#dc3545',
+        borderRadius: 5,
+        minWidth: 100,
+        alignItems: 'center',
+    },
+
+    cancelButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
     },
 });

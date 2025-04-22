@@ -12,7 +12,7 @@ const client = ModelClient(
 const MODEL: string = "mistral-small-2503"
 
 // The prompt used for extraction
-const EXTRACTION_PROMPT: string = "The given image is a photo of discharge medication orders that likely contain multiple drugs, extract the following information for every drug in the image:\n" +
+const EXTRACTION_PROMPT: string = "If the given image is not a photo of discharge medication orders, return a empty object; otherwise, the image likely contain multiple drugs, extract the following information for every drug in the image:\n" +
     "- type: The medication format (e.g., TAB for tablet, INJ for injection) which may sometimes appear combined with the medication name.\n" +
     "- name: The medication name that identifies the specific pharmaceutical product. Always exclude any Type information from this field.\n" +
     "- dosage: The size of a dose of a medicine or drug\n" +
