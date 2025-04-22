@@ -50,6 +50,8 @@ export class UserDataService extends AbstractAsyncService {
         if (!(await FileSystem.getInfoAsync(PATH)).exists) return;
         const data: string = await FileSystem.readAsStringAsync(PATH, {encoding: "utf8"});
         this.VALUES = JSON.parse(data);
+        // this.VALUES = {};
+        // await this.save();
     }
 
     protected static override getInit(): boolean {

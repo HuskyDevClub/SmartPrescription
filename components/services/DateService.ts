@@ -24,11 +24,10 @@ export class DateService {
     };
 
     // Convert time string to display format (12-hour with AM/PM)
-    public static formatTimeForDisplay(timeString?: string): string {
-        if (!timeString) return 'No reminder';
-        const [hours, minutes] = timeString.split(':').map(Number);
-        const displayHours: number = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+    public static formatTimeForDisplay(theReminderTime?: ReminderTime): string {
+        if (!theReminderTime) return 'No reminder';
+        const displayHours: number = theReminderTime.hours % 12 || 12; // Convert 0 to 12 for 12 AM
+        return `${displayHours}:${theReminderTime.minutes.toString().padStart(2, '0')} ${theReminderTime.hours >= 12 ? 'PM' : 'AM'}`;
     };
 
     // Get current date in YYYY-MM-DD format
@@ -42,12 +41,10 @@ export class DateService {
     }
 
     // Get time string from date
-    public static getTime(theDate: Date | undefined = undefined): string {
+    public static getTime(theDate: Date | undefined = undefined): ReminderTime {
         if (!theDate) {
             theDate = new Date();
         }
-        const hours = theDate.getHours().toString().padStart(2, '0');
-        const minutes = theDate.getMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
-    }
+        return {hours: theDate.getHours(), minutes: theDate.getMinutes(), label: ""};
+    };
 }

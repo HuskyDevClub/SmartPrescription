@@ -204,22 +204,13 @@ export const PrescriptionsTable = () => {
                             // Add time according to Frequency
                             const frequencyTable: string[] = p.frequency.split("-")
                             if (frequencyTable.at(0) == "1") {
-                                newItem.reminderTimes.push({
-                                    time: SettingsService.current.breakfastTime,
-                                    label: "Breakfast"
-                                });
+                                newItem.reminderTimes.push({...SettingsService.current.breakfastTime});
                             }
                             if (frequencyTable.at(1) == "1") {
-                                newItem.reminderTimes.push({
-                                    time: SettingsService.current.lunchTime,
-                                    label: "Lunch"
-                                });
+                                newItem.reminderTimes.push({...SettingsService.current.lunchTime});
                             }
                             if (frequencyTable.at(2) == "1") {
-                                newItem.reminderTimes.push({
-                                    time: SettingsService.current.dinnerTime,
-                                    label: "Dinner"
-                                });
+                                newItem.reminderTimes.push({...SettingsService.current.dinnerTime});
                             }
                             // Schedule notifications for new item
                             await PrescriptionService.addPrescription(newItem);
@@ -314,15 +305,16 @@ export const PrescriptionsTable = () => {
 
         // First pass: add all items to the map, potentially overwriting duplicates
         reminderTimes.forEach(reminder => {
-            const existingReminder = uniqueTimes.get(reminder.time);
+            const theTimeKey: string = `${reminder.hours}:${reminder.minutes}`
+            const existingReminder = uniqueTimes.get(theTimeKey);
 
             // If this time doesn't exist in our map yet, add it
             if (!existingReminder) {
-                uniqueTimes.set(reminder.time, reminder);
+                uniqueTimes.set(theTimeKey, reminder);
             }
             // If this time exists but current reminder has a label and existing one doesn't, replace it
             else if (reminder.label && !existingReminder.label) {
-                uniqueTimes.set(reminder.time, reminder);
+                uniqueTimes.set(theTimeKey, reminder);
             }
             // Otherwise keep the existing reminder (first occurrence or one with label)
         });
@@ -338,9 +330,6 @@ export const PrescriptionsTable = () => {
      * @returns A new array with matching times removed
      */
     function removeMatchingTimes(taken: string[], reminderTime: ReminderTime): string[] {
-        // Extract hour and minute from the reminderTime (format "HH:MM")
-        const [reminderHour, reminderMinute] = reminderTime.time.split(':').map(Number);
-
         // Filter out times that match the reminder's hour and minute
         return taken.filter(dateStr => {
             const date = new Date(dateStr);
@@ -348,7 +337,7 @@ export const PrescriptionsTable = () => {
             const minute = date.getMinutes();
 
             // Return false to filter out matching times (same hour and minute)
-            return !(hour === reminderHour && minute === reminderMinute);
+            return !(hour === reminderTime.hours && minute === reminderTime.minutes);
         });
     }
 
@@ -362,12 +351,15 @@ export const PrescriptionsTable = () => {
         if (event.type == "dismissed") {
             startEditingTimeIndex(-1)
         } else if (event.type == "set" && selectedTime) {
-            const timeString: string = DateService.getTime(selectedTime);
+            const theReminderTime: ReminderTime = DateService.getTime(selectedTime);
             if (editingTimeIndex >= 0 && editingTimeIndex < editedValues.reminderTimes.length) {
                 // Update existing time slot
-                editedValues.reminderTimes[editingTimeIndex].time = timeString;
+                editedValues.reminderTimes[editingTimeIndex] = {
+                    ...theReminderTime,
+                    label: editedValues.reminderTimes[editingTimeIndex].label
+                };
             } else {
-                editedValues.reminderTimes.push({time: timeString, label: ""});
+                editedValues.reminderTimes.push(theReminderTime);
             }
         }
     };
@@ -455,7 +447,7 @@ export const PrescriptionsTable = () => {
                             onPress={() => handleEdit(item)}
                         >
                             <Text style={styles.reminderSubtext}>
-                                {item.reminderTimes.length > 0 ? item.reminderTimes.map(timeObj => DateService.formatTimeForDisplay(timeObj.time)).join(', ') : "-"}
+                                {item.reminderTimes.length > 0 ? item.reminderTimes.map(timeObj => DateService.formatTimeForDisplay(timeObj)).join(', ') : "-"}
                             </Text>
                         </TouchableOpacity>
                         <View
@@ -469,7 +461,10 @@ export const PrescriptionsTable = () => {
                             style={[styles.cell, styles.subColumn]}
                         >
                             <Text style={[styles.cell, styles.nameColumn, {color: "red"}]}>
-                                {PrescriptionService.calculateDosesTakenSoFar(item) - item.taken.length}
+                                {PrescriptionService.calculateDosesTakenSoFar(item) - item.taken.filter(t => {
+                                    const takenTime = new Date(t);
+                                    return item.reminderTimes.find(rt => rt.minutes == takenTime.getMinutes() && rt.hours == takenTime.getHours())
+                                }).length}
                             </Text>
                         </View>
                     </View>
@@ -651,8 +646,7 @@ export const PrescriptionsTable = () => {
                                             if (editingTimeIndex >= 0 &&
                                                 editedValues.reminderTimes &&
                                                 editedValues.reminderTimes[editingTimeIndex]) {
-                                                const [hours, minutes] = editedValues.reminderTimes[editingTimeIndex].time.split(':').map(Number);
-                                                date.setHours(hours, minutes, 0, 0);
+                                                date.setHours(editedValues.reminderTimes[editingTimeIndex].hours, editedValues.reminderTimes[editingTimeIndex].minutes, 0, 0);
                                             }
                                             return date;
                                         })()}
@@ -664,7 +658,7 @@ export const PrescriptionsTable = () => {
                                 ) : (
                                     <TouchableOpacity onPress={() => startEditingTimeIndex(idx)}>
                                         <Text style={styles.timeSlotText}>
-                                            {DateService.formatTimeForDisplay(timeObj.time)}
+                                            {DateService.formatTimeForDisplay(timeObj)}
                                         </Text>
                                     </TouchableOpacity>
                                 )}
@@ -689,7 +683,7 @@ export const PrescriptionsTable = () => {
                         <TouchableOpacity
                             style={styles.addTimeButton}
                             onPress={() => {
-                                editedValues.reminderTimes.push({time: DateService.getTime(), label: ""});
+                                editedValues.reminderTimes.push(DateService.getTime());
                                 setEditingTimeIndex(editedValues.reminderTimes.length - 1)
                             }}
                         >

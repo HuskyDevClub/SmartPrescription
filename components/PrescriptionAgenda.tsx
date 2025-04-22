@@ -135,17 +135,37 @@ export const PrescriptionAgenda = () => {
                                 {med.dosage}
                             </Text>
                             <View style={styles.timesContainer}>
-                                {med.reminderTimes.map((timeObj, index) => {
+                                {(
+                                    [
+                                        ...med.reminderTimes,
+                                        ...med.taken
+                                            .map(t => new Date(t)).filter(t => t.getFullYear() == selectedDate.getFullYear()
+                                                && t.getMonth() == selectedDate.getMonth()
+                                                && t.getDate() == selectedDate.getDate()
+                                                && med.reminderTimes.find(rt => rt.minutes == t.getMinutes() && rt.hours == t.getHours()) == undefined)
+                                            .map(t => DateService.getTime(t))
+                                    ].sort((a, b) => {
+                                        // First compare hours
+                                        if (a.hours !== b.hours) {
+                                            return a.hours - b.hours;
+                                        }
+                                        // If hours are equal, compare minutes
+                                        return a.minutes - b.minutes;
+                                    })
+                                ).map((timeObj, index) => {
                                     const now: Date = new Date();
-                                    const theTime = new Date(selectedDate);
-                                    const timePrt: number[] = timeObj.time.split(":").map(Number);
-                                    theTime.setHours(timePrt[0], timePrt[1], 0, 0);
+                                    const theTime: Date = new Date(selectedDate);
+                                    theTime.setHours(timeObj.hours, timeObj.minutes, 0, 0);
+                                    const timeFormatedForDisplay: string = DateService.formatTimeForDisplay(timeObj);
                                     // Show upcoming taken time
                                     if (theTime > now) {
                                         return (
-                                            <Text key={index} style={[styles.timeChip, {backgroundColor: '#E1F5FE'}]}>
-                                                {timeObj.label.length > 0 ? `${timeObj.label} (${DateService.formatTimeForDisplay(timeObj.time)})` : DateService.formatTimeForDisplay(timeObj.time)}
-                                            </Text>
+                                            <TouchableOpacity key={index}
+                                                              style={[styles.timeChip, {backgroundColor: '#E1F5FE'}]}>
+                                                <Text>
+                                                    {timeObj.label.length > 0 ? `${timeObj.label} (${timeFormatedForDisplay})` : timeFormatedForDisplay}
+                                                </Text>
+                                            </TouchableOpacity>
                                         )
                                     }
                                     // Show whether the medicine has been taken or not
@@ -163,7 +183,7 @@ export const PrescriptionAgenda = () => {
                                                               setRefreshFlag(!refreshFlag);
                                                           }}>
                                             <Text>
-                                                {timeObj.label.length > 0 ? `${timeObj.label} (${DateService.formatTimeForDisplay(timeObj.time)})` : DateService.formatTimeForDisplay(timeObj.time)}
+                                                {timeObj.label.length > 0 ? `${timeObj.label} (${timeFormatedForDisplay})` : timeFormatedForDisplay}
                                             </Text>
                                         </TouchableOpacity>
                                     )

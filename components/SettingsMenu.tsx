@@ -4,7 +4,7 @@ import Slider from '@react-native-community/slider';
 import {SettingsService} from "@/components/services/SettingsService";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 import {useFocusEffect} from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, {DateTimePickerEvent} from "@react-native-community/datetimepicker";
 import {DateService} from "@/components/services/DateService";
 
 export const SettingsMenu = () => {
@@ -13,11 +13,6 @@ export const SettingsMenu = () => {
 
     const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
     const [updateFlag, setUpdateFlag] = useState<boolean>(false);
-
-    const saveChanges = async () => {
-        await SettingsService.save();
-        setRefreshFlag(!refreshFlag);
-    };
 
     useFocusEffect(
         useCallback(() => {
@@ -69,9 +64,10 @@ export const SettingsMenu = () => {
                     step={5}
                     onValueChange={async (value) => {
                         SettingsService.current.snoozeTime = value
-                        await saveChanges()
+                        await SettingsService.save();
                         await PrescriptionService.updateNotificationButtons();
                         await PrescriptionService.rescheduleAllNotifications();
+                        setRefreshFlag(!refreshFlag);
                     }}
                     minimumTrackTintColor="#4B7BEC"
                     maximumTrackTintColor="#ddd"
@@ -103,18 +99,17 @@ export const SettingsMenu = () => {
                 <View style={styles.rowContainer}>
                     <Text style={styles.subSettingLabel}>Breakfast</Text>
                     <DateTimePicker
-                        value={(() => {
-                            const date = new Date();
-                            const [hours, minutes] = SettingsService.current.breakfastTime.split(':').map(Number);
-                            date.setHours(hours, minutes, 0, 0);
-                            return date
-                        })()}
+                        value={(() => new Date(2000, 1, 1, SettingsService.current.breakfastTime.hours, SettingsService.current.breakfastTime.minutes, 0, 0))()}
                         mode="time"
                         is24Hour={false}
                         display="default"
-                        onChange={(_: any, selectedTime?: Date) => {
-                            if (selectedTime) {
-                                SettingsService.current.breakfastTime = DateService.getTime(selectedTime);
+                        onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => {
+                            if (event.type == "set" && selectedTime) {
+                                SettingsService.current.breakfastTime = {
+                                    ...DateService.getTime(selectedTime),
+                                    label: SettingsService.current.breakfastTime.label
+                                };
+                                await SettingsService.save();
                             }
                         }}
                     />
@@ -122,18 +117,17 @@ export const SettingsMenu = () => {
                 <View style={styles.rowContainer}>
                     <Text style={styles.subSettingLabel}>Lunch</Text>
                     <DateTimePicker
-                        value={(() => {
-                            const date = new Date();
-                            const [hours, minutes] = SettingsService.current.lunchTime.split(':').map(Number);
-                            date.setHours(hours, minutes, 0, 0);
-                            return date
-                        })()}
+                        value={(() => new Date(2000, 1, 1, SettingsService.current.lunchTime.hours, SettingsService.current.lunchTime.minutes, 0, 0))()}
                         mode="time"
                         is24Hour={false}
                         display="default"
-                        onChange={(_: any, selectedTime?: Date) => {
-                            if (selectedTime) {
-                                SettingsService.current.lunchTime = DateService.getTime(selectedTime);
+                        onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => {
+                            if (event.type == "set" && selectedTime) {
+                                SettingsService.current.lunchTime = {
+                                    ...DateService.getTime(selectedTime),
+                                    label: SettingsService.current.lunchTime.label
+                                };
+                                await SettingsService.save();
                             }
                         }}
                     />
@@ -141,18 +135,17 @@ export const SettingsMenu = () => {
                 <View style={styles.rowContainer}>
                     <Text style={styles.subSettingLabel}>Dinner</Text>
                     <DateTimePicker
-                        value={(() => {
-                            const date = new Date();
-                            const [hours, minutes] = SettingsService.current.dinnerTime.split(':').map(Number);
-                            date.setHours(hours, minutes, 0, 0);
-                            return date
-                        })()}
+                        value={(() => new Date(2000, 1, 1, SettingsService.current.dinnerTime.hours, SettingsService.current.dinnerTime.minutes, 0, 0))()}
                         mode="time"
                         is24Hour={false}
                         display="default"
-                        onChange={(_: any, selectedTime?: Date) => {
-                            if (selectedTime) {
-                                SettingsService.current.dinnerTime = DateService.getTime(selectedTime);
+                        onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => {
+                            if (event.type == "set" && selectedTime) {
+                                SettingsService.current.dinnerTime = {
+                                    ...DateService.getTime(selectedTime),
+                                    label: SettingsService.current.dinnerTime.label
+                                };
+                                await SettingsService.save();
                             }
                         }}
                     />

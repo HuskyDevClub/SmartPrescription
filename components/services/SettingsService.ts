@@ -6,9 +6,9 @@ const NAME: string = "Settings"
 interface SettingsState {
     snoozeTime: number;
     notificationsEnabled: boolean;
-    breakfastTime: string;
-    lunchTime: string;
-    dinnerTime: string;
+    breakfastTime: ReminderTime;
+    lunchTime: ReminderTime;
+    dinnerTime: ReminderTime;
 }
 
 
@@ -17,14 +17,14 @@ export class SettingsService extends AbstractAsyncService {
     public static current: SettingsState = {
         snoozeTime: 5,
         notificationsEnabled: true,
-        breakfastTime: "8:00",
-        lunchTime: "13:00",
-        dinnerTime: "18:00"
+        breakfastTime: {hours: 8, minutes: 0, label: "Breakfast"},
+        lunchTime: {hours: 13, minutes: 0, label: "Lunch"},
+        dinnerTime: {hours: 18, minutes: 0, label: "Dinner"}
     };
     private static isInitialized: boolean = false;
 
     public static async save(): Promise<void> {
-        await UserDataService.save();
+        await UserDataService.set(NAME, this.current)
     }
 
     protected static override async initialize(): Promise<void> {

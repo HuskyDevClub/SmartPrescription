@@ -1,4 +1,5 @@
 interface ReminderTime {
-    time: string;
+    hours: number;
+    minutes: number;
     label: string;
 }

@@ -166,14 +166,12 @@ export class PrescriptionService extends AbstractAsyncService {
             // For today, only count doses whose reminder times have passed
             else {
                 for (const reminderTimeObj of prescription.reminderTimes) {
-                    const [hours, minutes] = reminderTimeObj.time.split(':').map(Number);
-
                     const reminderDateTime = new Date(
                         currentDate.getFullYear(),
                         currentDate.getMonth(),
                         currentDate.getDate(),
-                        hours,
-                        minutes
+                        reminderTimeObj.hours,
+                        reminderTimeObj.minutes,
                     );
 
                     // Skip if this reminder is before the start time (first day)
@@ -286,18 +284,16 @@ export class PrescriptionService extends AbstractAsyncService {
         if (!SettingsService.current.notificationsEnabled) return;
 
         // Schedule a notification for each reminder time
-        for (let i = 0; i < item.reminderTimes.length; i++) {
-            // Parse the reminder time
-            const [hours, minutes] = item.reminderTimes[i].time.split(':').map(Number);
+        for (const theReminderTime of item.reminderTimes) {
             // The notification identifier
-            const notificationIdentifier: string = `${item.id}_${hours}_${minutes}`
+            const notificationIdentifier: string = `${item.id}_${theReminderTime.hours}_${theReminderTime.minutes}`
             // Schedule the notification
             await Notifications.scheduleNotificationAsync({
                 content: this.getNotificationContent(item, notificationIdentifier, null),
                 trigger: {
                     type: SchedulableTriggerInputTypes.DAILY,
-                    hour: hours,
-                    minute: minutes
+                    hour: theReminderTime.hours,
+                    minute: theReminderTime.minutes
                 },
                 identifier: notificationIdentifier
             });
