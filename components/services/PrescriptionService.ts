@@ -36,12 +36,12 @@ export class PrescriptionService extends AbstractAsyncService {
         return this.prescriptionsRef;
     }
 
-    public static getExpiredPrescriptions(): PrescriptionRecord[] {
-        return this.prescriptionsRef.filter(p => this.isPrescriptionExpired(p));
+    public static getArchivedPrescriptions(): PrescriptionRecord[] {
+        return this.prescriptionsRef.filter(p => p.archived);
     }
 
-    public static getNotExpiredPrescriptions(): PrescriptionRecord[] {
-        return this.prescriptionsRef.filter(p => !this.isPrescriptionExpired(p));
+    public static getActivePrescriptions(): PrescriptionRecord[] {
+        return this.prescriptionsRef.filter(p => !p.archived);
     }
 
     public static async addPrescription(newItem: PrescriptionRecord): Promise<void> {
@@ -205,7 +205,8 @@ export class PrescriptionService extends AbstractAsyncService {
             taken: [],
             reminderTimes: [],
             startAt: new Date(),
-            endAt: new Date()
+            endAt: new Date(),
+            archived: false,
         }
     }
 

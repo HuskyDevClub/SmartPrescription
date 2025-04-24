@@ -17,4 +17,5 @@ export interface PrescriptionRecord extends AbstractMedicalPrescription {
     reminderTimes: ReminderTime[]; // Store time in 24-hour format (HH:MM)
     startAt: Date;
     endAt: Date;
+    archived: boolean;
 }

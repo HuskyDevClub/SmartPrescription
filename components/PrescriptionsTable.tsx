@@ -41,14 +41,14 @@ export const PrescriptionsTable = () => {
     const [abortController, setAbortController] = useState<AbortController | null>(null);
 
     // Create a rate limiter instance for API calls - 10 calls per hour (3,600,000 milliseconds)
-    const apiRateLimiter: RateLimiter = new RateLimiter('ai_api_calls', 10, 3600000);
+    const apiRateLimiter: RateLimiter = new RateLimiter('ai_api_calls', 10, 1000 * 60 * 10);
     // Create rate-limited version of the function
     const rateLimitedGetImageText = apiRateLimiter.limit(AiService.getImageText);
 
     // Handler for edit button
     const handleEdit = (item: PrescriptionRecord): void => {
         setEditItem(item);
-        setEditedValues({...item});
+        setEditedValues(JSON.parse(JSON.stringify(item)) as PrescriptionRecord);
         setModalVisible(true);
     };
 
@@ -199,7 +199,8 @@ export const PrescriptionsTable = () => {
                                 taken: [],
                                 reminderTimes: [],
                                 startAt: new Date(),
-                                endAt: endAt
+                                endAt: endAt,
+                                archived: false,
                             };
                             // Add time according to Frequency
                             const frequencyTable: string[] = p.frequency.split("-")
@@ -374,16 +375,31 @@ export const PrescriptionsTable = () => {
         }
     };
 
-    // Render expired prescriptions
-    const RenderExpire: React.FC = () => {
-        const expiredPrescription: PrescriptionRecord[] = PrescriptionService.getExpiredPrescriptions()
-        if (expiredPrescription.length == 0) {
+    // Render expired prescription(s)
+    const RenderArchivedPrescriptions: React.FC = () => {
+        const expiredPrescriptions: PrescriptionRecord[] = PrescriptionService.getArchivedPrescriptions()
+        if (expiredPrescriptions.length == 0) {
             return (<View/>);
         }
         return (
-            <GestureHandlerRootView style={{marginTop: 60}}>
-                <Text style={styles.modalTitle}>Expired</Text>
-                {expiredPrescription.map((p, i) => renderItem(p, i))}
+            <View style={styles.container}>
+                <Text style={styles.modalTitle}>{`Past Medicine${expiredPrescriptions.length === 1 ? '' : 's'}`}</Text>
+                <GestureHandlerRootView>
+                    {expiredPrescriptions.map((p, i) => renderItem(p, i))}
+                </GestureHandlerRootView>
+            </View>
+        )
+    }
+
+    // Render active prescription(s)
+    const RenderActivePrescriptions: React.FC = () => {
+        const activePrescriptions: PrescriptionRecord[] = PrescriptionService.getActivePrescriptions()
+        if (activePrescriptions.length == 0) {
+            return (<View/>);
+        }
+        return (
+            <GestureHandlerRootView>
+                {activePrescriptions.map((p, i) => renderItem(p, i))}
             </GestureHandlerRootView>
         )
     }
@@ -404,24 +420,46 @@ export const PrescriptionsTable = () => {
         function RightAction(_: SharedValue<number>, drag: SharedValue<number>) {
             const styleAnimation = useAnimatedStyle(() => {
                 return {
-                    transform: [{translateX: drag.value + 50}],
+                    transform: [{translateX: drag.value + 160}], // Increased width for two equal buttons
                 };
             });
+            // @ts-ignore
             return (
-                <View style={{
-                    backgroundColor: 'red',
-                    width: '100%',
-                    justifyContent: "center",
-                    alignItems: "flex-end"
-                }}>
-                    <Animated.View style={styleAnimation}>
+                <Animated.View style={styleAnimation}>
+                    <View style={{flexDirection: 'row', height: "100%"}}>
+                        {/* Archive button */}
                         <TouchableOpacity
+                            style={{
+                                backgroundColor: '#17a2b8', // Using the teal color from your existing styles
+                                width: 80,
+                                height: '100%',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
+                            onPress={async () => {
+                                item.archived = !item.archived;
+                                await UserDataService.save();
+                                setRefreshFlag(!refreshFlag);
+                            }}
+                        >
+                            <Ionicons name={item.archived ? "arrow-up-circle" : "archive"} size={25} color="white"/>
+                        </TouchableOpacity>
+
+                        {/* Delete button */}
+                        <TouchableOpacity
+                            style={{
+                                backgroundColor: 'red',
+                                width: 80,
+                                height: '100%',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
                             onPress={() => handleDelete(item.id)}
                         >
                             <Ionicons name="trash" size={25} color="white"/>
                         </TouchableOpacity>
-                    </Animated.View>
-                </View>
+                    </View>
+                </Animated.View>
             );
         }
 
@@ -429,7 +467,7 @@ export const PrescriptionsTable = () => {
             <View key={index}>
                 <ReanimatedSwipeable friction={2}
                                      enableTrackpadTwoFingerGesture
-                                     rightThreshold={50}
+                                     rightThreshold={80} // Adjusted threshold to match button width
                                      overshootRight={false}
                                      overshootLeft={false}
                                      renderRightActions={RightAction}
@@ -440,7 +478,7 @@ export const PrescriptionsTable = () => {
                             onPress={() => handleEdit(item)}
                         >
                             <Text
-                                style={[styles.cell, styles.nameColumn]}>{item.dosage.length > 0 ? `${item.name} (${item.dosage})` : item.name}</Text>
+                                style={[styles.cell, styles.nameColumn, {color: PrescriptionService.isPrescriptionExpired(item) ? "red" : "black"}]}>{item.dosage.length > 0 ? `${item.name} (${item.dosage})` : item.name}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.cell, styles.subColumn]}
@@ -453,14 +491,14 @@ export const PrescriptionsTable = () => {
                         <View
                             style={[styles.cell, styles.subColumn]}
                         >
-                            <Text style={[styles.cell, styles.nameColumn, {color: "green"}]}>
+                            <Text style={[styles.cell, {color: "green"}]}>
                                 {item.taken.length}
                             </Text>
                         </View>
                         <View
                             style={[styles.cell, styles.subColumn]}
                         >
-                            <Text style={[styles.cell, styles.nameColumn, {color: "red"}]}>
+                            <Text style={[styles.cell, {color: "red"}]}>
                                 {PrescriptionService.calculateDosesTakenSoFar(item) - item.taken.filter(t => {
                                     const takenTime = new Date(t);
                                     return item.reminderTimes.find(rt => rt.minutes == takenTime.getMinutes() && rt.hours == takenTime.getHours())
@@ -475,240 +513,241 @@ export const PrescriptionsTable = () => {
     }
 
     return (
-        <View style={styles.container}>
-            <View style={{flexDirection: 'row'}}>
-                <Text style={styles.title}>MyPill</Text>
-                <View style={styles.fabContainer}>
-                    <TouchableOpacity style={styles.fabButton} onPress={takePrescriptionPhoto}>
-                        <Ionicons name="camera" size={40} color="white"/>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.fabButton} onPress={selectPrescriptionPhoto}>
-                        <Ionicons name="image" size={40} color="white"/>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.fabButton} onPress={handleAdd}>
-                        <Ionicons name="add" size={40} color="white"/>
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            {isLoading && <Modal
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => {
-                    if (abortController) {
-                        abortController.abort();
-                    }
-                }}
-            >
-                <View style={styles.modalBackground}>
-                    <View style={styles.spinnerContainer}>
-                        <ActivityIndicator
-                            size="large"
-                            color="#0275d8"
-                        />
-                        <Text style={styles.loadingText}>Processing prescription...</Text>
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={() => {
-                                if (abortController) {
-                                    abortController.abort();
-                                }
-                            }}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
+        <View>
+            <View style={styles.container}>
+                <View style={{flexDirection: 'row'}}>
+                    <Text style={styles.title}>MyPill</Text>
+                    <View style={styles.fabContainer}>
+                        <TouchableOpacity style={[styles.fabButton, {backgroundColor: "#059669"}]}
+                                          onPress={takePrescriptionPhoto}>
+                            <Ionicons name="camera" size={40} color="white"/>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.fabButton, {backgroundColor: "#C2410C"}]}
+                                          onPress={selectPrescriptionPhoto}>
+                            <Ionicons name="image" size={40} color="white"/>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.fabButton, {backgroundColor: "#78716C"}]} onPress={handleAdd}>
+                            <Ionicons name="add" size={40} color="white"/>
                         </TouchableOpacity>
                     </View>
                 </View>
-            </Modal>}
 
-            {PrescriptionService.notEmpty() && <View style={styles.headerContainer}>
-                <TableHeader/>
-            </View>}
-
-            <GestureHandlerRootView>
-                {PrescriptionService.getNotExpiredPrescriptions().map((p, i) => renderItem(p, i))}
-            </GestureHandlerRootView>
-
-            <RenderExpire/>
-
-            {/* Edit Modal */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <SafeAreaView style={styles.centeredView}>
-                    <ScrollView style={styles.modalView} automaticallyAdjustKeyboardInsets={true}>
-                        <Text style={styles.modalTitle}>{editItem ? 'Edit Item' : 'Add New Item'}</Text>
-
-                        <Text style={styles.inputLabel}>Name:</Text>
-                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <TextInput
-                                style={[styles.input, {flex: 6}]}
-                                value={editedValues.name}
-                                onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
+                {isLoading && <Modal
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => {
+                        if (abortController) {
+                            abortController.abort();
+                        }
+                    }}
+                >
+                    <View style={styles.modalBackground}>
+                        <View style={styles.spinnerContainer}>
+                            <ActivityIndicator
+                                size="large"
+                                color="#0275d8"
                             />
-                            {editedValues.name && <TouchableOpacity
-                                style={{flex: 1, alignItems: 'center'}}
-                                onPress={() => Linking.openURL(`https://www.google.com/search?q=${editedValues.name}`)}
+                            <Text style={styles.loadingText}>Processing prescription...</Text>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => {
+                                    if (abortController) {
+                                        abortController.abort();
+                                    }
+                                }}
                             >
-                                <Ionicons name="link" size={28} color="blue"/>
-                            </TouchableOpacity>}
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
                         </View>
+                    </View>
+                </Modal>}
 
-                        <Text style={styles.inputLabel}>Dosage:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={editedValues.dosage}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, dosage: text})}
-                        />
+                {PrescriptionService.getActivePrescriptions().length > 0 && <View style={styles.headerContainer}>
+                    <TableHeader/>
+                </View>}
 
-                        <Text style={styles.inputLabel}>Type:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={editedValues.type}
-                            onChangeText={(text: string) => setEditedValues({...editedValues, type: text})}
-                        />
+                <RenderActivePrescriptions/>
 
-                        <Text style={styles.inputLabel}>Food:</Text>
-                        <TouchableOpacity
-                            style={[
-                                styles.button2,
-                                editedValues.food === 1 ? styles.selectedButton : null
-                            ]}
-                            onPress={() => setEditedValues({
-                                ...editedValues,
-                                food: editedValues.food === 1 ? 0 : 1
-                            })}
-                        >
-                            <Text style={[
-                                styles.buttonText2,
-                                editedValues.food === 1 ? styles.selectedButtonText : null
-                            ]}>
-                                Before Food
-                            </Text>
-                        </TouchableOpacity>
+                {/* Edit Modal */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={modalVisible}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <SafeAreaView style={styles.centeredView}>
+                        <ScrollView style={styles.modalView} automaticallyAdjustKeyboardInsets={true}>
+                            <Text style={styles.modalTitle}>{editItem ? 'Edit Item' : 'Add New Item'}</Text>
 
-                        <TouchableOpacity
-                            style={[
-                                styles.button2,
-                                editedValues.food === 2 ? styles.selectedButton : null
-                            ]}
-                            onPress={() => setEditedValues({
-                                ...editedValues,
-                                food: editedValues.food === 2 ? 0 : 2
-                            })}
-                        >
-                            <Text style={[
-                                styles.buttonText2,
-                                editedValues.food === 2 ? styles.selectedButtonText : null
-                            ]}>
-                                After Food
-                            </Text>
-                        </TouchableOpacity>
-
-                        <View style={[styles.buttonContainer, {marginTop: 15}]}>
-                            <View style={styles.splitBlockL}>
-                                <Text style={styles.inputLabel}>Start At:</Text>
-                                <DateTimePicker
-                                    value={new Date(editedValues.startAt)}
-                                    onChange={(_, theDate: Date | undefined) => setEditedValues({
-                                        ...editedValues,
-                                        startAt: new Date(theDate ? theDate : editedValues.startAt)
-                                    })}
-                                    maximumDate={new Date(editedValues.endAt)}
+                            <Text style={styles.inputLabel}>Name:</Text>
+                            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                                <TextInput
+                                    style={[styles.input, {flex: 6}]}
+                                    value={editedValues.name}
+                                    onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
                                 />
+                                {editedValues.name && <TouchableOpacity
+                                    style={{flex: 1, alignItems: 'center'}}
+                                    onPress={() => Linking.openURL(`https://www.google.com/search?q=${editedValues.name}`)}
+                                >
+                                    <Ionicons name="link" size={28} color="blue"/>
+                                </TouchableOpacity>}
                             </View>
-                            <View style={styles.splitBlockR}>
-                                <Text style={styles.inputLabel}>End At:</Text>
-                                <DateTimePicker
-                                    value={new Date(editedValues.endAt)}
-                                    onChange={(_, theDate: Date | undefined) => setEditedValues({
-                                        ...editedValues,
-                                        endAt: new Date(theDate ? theDate : editedValues.endAt)
-                                    })}
-                                    minimumDate={new Date(editedValues.startAt)}
-                                />
-                            </View>
-                        </View>
 
-                        <Text style={styles.inputLabel}>Reminder Times:</Text>
+                            <Text style={styles.inputLabel}>Dosage:</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={editedValues.dosage}
+                                onChangeText={(text: string) => setEditedValues({...editedValues, dosage: text})}
+                            />
 
-                        {/* List of existing time slots */}
-                        {editedValues.reminderTimes && editedValues.reminderTimes.map((timeObj, idx) => (
-                            <View key={idx} style={styles.timeSlotContainer}>
-                                {/* Time picker (shown when adding/editing a time) */}
-                                {editingTimeIndex == idx ? (
+                            <Text style={styles.inputLabel}>Type:</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={editedValues.type}
+                                onChangeText={(text: string) => setEditedValues({...editedValues, type: text})}
+                            />
+
+                            <Text style={styles.inputLabel}>Food:</Text>
+                            <TouchableOpacity
+                                style={[
+                                    styles.button2,
+                                    editedValues.food === 1 ? styles.selectedButton : null
+                                ]}
+                                onPress={() => setEditedValues({
+                                    ...editedValues,
+                                    food: editedValues.food === 1 ? 0 : 1
+                                })}
+                            >
+                                <Text style={[
+                                    styles.buttonText2,
+                                    editedValues.food === 1 ? styles.selectedButtonText : null
+                                ]}>
+                                    Before Food
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.button2,
+                                    editedValues.food === 2 ? styles.selectedButton : null
+                                ]}
+                                onPress={() => setEditedValues({
+                                    ...editedValues,
+                                    food: editedValues.food === 2 ? 0 : 2
+                                })}
+                            >
+                                <Text style={[
+                                    styles.buttonText2,
+                                    editedValues.food === 2 ? styles.selectedButtonText : null
+                                ]}>
+                                    After Food
+                                </Text>
+                            </TouchableOpacity>
+
+                            <View style={[styles.buttonContainer, {marginTop: 15}]}>
+                                <View style={styles.splitBlockL}>
+                                    <Text style={styles.inputLabel}>Start At:</Text>
                                     <DateTimePicker
-                                        value={(() => {
-                                            const date = new Date();
-                                            if (editingTimeIndex >= 0 &&
-                                                editedValues.reminderTimes &&
-                                                editedValues.reminderTimes[editingTimeIndex]) {
-                                                date.setHours(editedValues.reminderTimes[editingTimeIndex].hours, editedValues.reminderTimes[editingTimeIndex].minutes, 0, 0);
-                                            }
-                                            return date;
-                                        })()}
-                                        mode="time"
-                                        is24Hour={false}
-                                        display="default"
-                                        onChange={onTimeChange}
+                                        value={new Date(editedValues.startAt)}
+                                        onChange={(_, theDate: Date | undefined) => setEditedValues({
+                                            ...editedValues,
+                                            startAt: new Date(theDate ? theDate : editedValues.startAt)
+                                        })}
+                                        maximumDate={new Date(editedValues.endAt)}
                                     />
-                                ) : (
-                                    <TouchableOpacity onPress={() => startEditingTimeIndex(idx)}>
-                                        <Text style={styles.timeSlotText}>
-                                            {DateService.formatTimeForDisplay(timeObj)}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                                <TextInput style={styles.timeSlotText}
-                                           placeholder={timeObj.label.length > 0 ? timeObj.label : "\<click to label\>"}
-                                           onChangeText={(text: string) => {
-                                               timeObj.label = text
-                                           }}/>
-
-                                <View style={styles.timeSlotButtons}>
-                                    <TouchableOpacity
-                                        style={styles.timeSlotDeleteButton}
-                                        onPress={() => removeTimeSlot(idx)}
-                                    >
-                                        <Ionicons name="trash" size={18} color="#dc3545"/>
-                                    </TouchableOpacity>
+                                </View>
+                                <View style={styles.splitBlockR}>
+                                    <Text style={styles.inputLabel}>End At:</Text>
+                                    <DateTimePicker
+                                        value={new Date(editedValues.endAt)}
+                                        onChange={(_, theDate: Date | undefined) => setEditedValues({
+                                            ...editedValues,
+                                            endAt: new Date(theDate ? theDate : editedValues.endAt)
+                                        })}
+                                        minimumDate={new Date(editedValues.startAt)}
+                                    />
                                 </View>
                             </View>
-                        ))}
 
-                        {/* Add new time slot button */}
-                        <TouchableOpacity
-                            style={styles.addTimeButton}
-                            onPress={() => {
-                                editedValues.reminderTimes.push(DateService.getTime());
-                                setEditingTimeIndex(editedValues.reminderTimes.length - 1)
-                            }}
-                        >
-                            <Ionicons name="add-circle" size={20} color="#28a745"/>
-                            <Text style={styles.addTimeButtonText}>Add Time Slot</Text>
-                        </TouchableOpacity>
+                            <Text style={styles.inputLabel}>Reminder Times:</Text>
 
-                        <View style={styles.modalButtons}>
+                            {/* List of existing time slots */}
+                            {editedValues.reminderTimes && editedValues.reminderTimes.map((timeObj, idx) => (
+                                <View key={idx} style={styles.timeSlotContainer}>
+                                    {/* Time picker (shown when adding/editing a time) */}
+                                    {editingTimeIndex == idx ? (
+                                        <DateTimePicker
+                                            value={(() => {
+                                                const date = new Date();
+                                                if (editingTimeIndex >= 0 &&
+                                                    editedValues.reminderTimes &&
+                                                    editedValues.reminderTimes[editingTimeIndex]) {
+                                                    date.setHours(editedValues.reminderTimes[editingTimeIndex].hours, editedValues.reminderTimes[editingTimeIndex].minutes, 0, 0);
+                                                }
+                                                return date;
+                                            })()}
+                                            mode="time"
+                                            is24Hour={false}
+                                            display="default"
+                                            onChange={onTimeChange}
+                                        />
+                                    ) : (
+                                        <TouchableOpacity onPress={() => startEditingTimeIndex(idx)}>
+                                            <Text style={styles.timeSlotText}>
+                                                {DateService.formatTimeForDisplay(timeObj)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TextInput style={styles.timeSlotText}
+                                               placeholder={timeObj.label.length > 0 ? timeObj.label : "\<click to label\>"}
+                                               onChangeText={(text: string) => {
+                                                   timeObj.label = text
+                                               }}/>
+
+                                    <View style={styles.timeSlotButtons}>
+                                        <TouchableOpacity
+                                            style={styles.timeSlotDeleteButton}
+                                            onPress={() => removeTimeSlot(idx)}
+                                        >
+                                            <Ionicons name="trash" size={18} color="#dc3545"/>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))}
+
+                            {/* Add new time slot button */}
                             <TouchableOpacity
-                                style={[styles.button, styles.buttonCancel]}
-                                onPress={closeModal}
+                                style={styles.addTimeButton}
+                                onPress={() => {
+                                    editedValues.reminderTimes.push(DateService.getTime());
+                                    setEditingTimeIndex(editedValues.reminderTimes.length - 1)
+                                }}
                             >
-                                <Text style={styles.buttonText}>Cancel</Text>
+                                <Ionicons name="add-circle" size={20} color="#28a745"/>
+                                <Text style={styles.addTimeButtonText}>Add Time Slot</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.button, {backgroundColor: !editedValues.name ? 'gray' : '#28a745'}]}
-                                onPress={handleSave}
-                                disabled={!editedValues.name}
-                            >
-                                <Text style={styles.buttonText}>Save</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.button, styles.buttonCancel]}
+                                    onPress={closeModal}
+                                >
+                                    <Text style={styles.buttonText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.button, {backgroundColor: !editedValues.name ? 'gray' : '#28a745'}]}
+                                    onPress={handleSave}
+                                    disabled={!editedValues.name}
+                                >
+                                    <Text style={styles.buttonText}>Save</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
+                    </SafeAreaView>
+                </Modal>
+            </View>
+            <RenderArchivedPrescriptions/>
         </View>
     )
 }

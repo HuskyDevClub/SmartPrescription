@@ -2,12 +2,12 @@ import ModelClient from "@azure-rest/ai-inference";
 import {AzureKeyCredential} from "@azure/core-auth";
 import PrescriptionsSchema from "@/components/models/PrescriptionsSchema.json";
 
+// Azure OpenAI Service endpoint
+const AZURE_AI_MODEL_INFERENCE_ENDPOINT: string = ""
+// API Key
+const API_KEY: string = ""
 // the model client
-const client = ModelClient(
-    "",
-    new AzureKeyCredential(""),
-);
-
+const client = ModelClient(AZURE_AI_MODEL_INFERENCE_ENDPOINT, new AzureKeyCredential(API_KEY));
 // The model that is selected
 const MODEL: string = "mistral-small-2503"
 
@@ -15,7 +15,7 @@ const MODEL: string = "mistral-small-2503"
 const EXTRACTION_PROMPT: string = "If the given image is not a photo of discharge medication orders, return a empty object; otherwise, the image likely contain multiple drugs, extract the following information for every drug in the image:\n" +
     "- type: The medication format (e.g., TAB for tablet, INJ for injection) which may sometimes appear combined with the medication name.\n" +
     "- name: The medication name that identifies the specific pharmaceutical product. Always exclude any Type information from this field.\n" +
-    "- dosage: The size of a dose of a medicine or drug\n" +
+    "- dosage: The size of a dose of a medicine or drug (e.g., 5 MG, 1 TAB)\n" +
     "- route: Routes of drug administration\n" +
     "- food: Timing of medication in relation to meals: Use 1 if medication should be taken before food, 2 if after food, or 0 if timing relative to food doesn't matter.\n" +
     "- frequency: The medication dosage schedule, represented by three digits (either 0 or 1) separated by hyphens.\n" +
