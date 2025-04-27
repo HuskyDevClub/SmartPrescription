@@ -18,7 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import {ImagePickerResult} from "expo-image-picker";
 import {AiService} from "@/components/services/AiService";
 import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Notifications from 'expo-notifications';
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 import {DateService} from "@/components/services/DateService";
@@ -384,6 +384,7 @@ export const PrescriptionsTable = () => {
         return (
             <View style={styles.container}>
                 <Text style={styles.modalTitle}>{`Past Medicine${expiredPrescriptions.length === 1 ? '' : 's'}`}</Text>
+                <TableHeader/>
                 <GestureHandlerRootView>
                     {expiredPrescriptions.map((p, i) => renderItem(p, i))}
                 </GestureHandlerRootView>
@@ -442,7 +443,7 @@ export const PrescriptionsTable = () => {
                                 setRefreshFlag(!refreshFlag);
                             }}
                         >
-                            <Ionicons name={item.archived ? "arrow-up-circle" : "archive"} size={25} color="white"/>
+                            <MaterialIcons name={item.archived ? "unarchive" : "archive"} size={25} color="white"/>
                         </TouchableOpacity>
 
                         {/* Delete button */}
@@ -456,7 +457,7 @@ export const PrescriptionsTable = () => {
                             }}
                             onPress={() => handleDelete(item.id)}
                         >
-                            <Ionicons name="trash" size={25} color="white"/>
+                            <MaterialIcons name="delete" size={25} color="white"/>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>
@@ -520,14 +521,14 @@ export const PrescriptionsTable = () => {
                     <View style={styles.fabContainer}>
                         <TouchableOpacity style={[styles.fabButton, {backgroundColor: "#059669"}]}
                                           onPress={takePrescriptionPhoto}>
-                            <Ionicons name="camera" size={40} color="white"/>
+                            <MaterialIcons name="camera" size={40} color="white"/>
                         </TouchableOpacity>
                         <TouchableOpacity style={[styles.fabButton, {backgroundColor: "#C2410C"}]}
                                           onPress={selectPrescriptionPhoto}>
-                            <Ionicons name="image" size={40} color="white"/>
+                            <MaterialIcons name="image" size={40} color="white"/>
                         </TouchableOpacity>
                         <TouchableOpacity style={[styles.fabButton, {backgroundColor: "#78716C"}]} onPress={handleAdd}>
-                            <Ionicons name="add" size={40} color="white"/>
+                            <MaterialIcons name="add" size={40} color="white"/>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -562,9 +563,11 @@ export const PrescriptionsTable = () => {
                     </View>
                 </Modal>}
 
-                {PrescriptionService.getActivePrescriptions().length > 0 && <View style={styles.headerContainer}>
-                    <TableHeader/>
-                </View>}
+                {PrescriptionService.getActivePrescriptions().length > 0 && (
+                    <View style={styles.headerContainer}>
+                        <TableHeader/>
+                    </View>)
+                }
 
                 <RenderActivePrescriptions/>
 
@@ -590,7 +593,7 @@ export const PrescriptionsTable = () => {
                                     style={{flex: 1, alignItems: 'center'}}
                                     onPress={() => Linking.openURL(`https://www.google.com/search?q=${editedValues.name}`)}
                                 >
-                                    <Ionicons name="link" size={28} color="blue"/>
+                                    <MaterialIcons name="link" size={28} color="blue"/>
                                 </TouchableOpacity>}
                             </View>
 
@@ -710,7 +713,7 @@ export const PrescriptionsTable = () => {
                                             style={styles.timeSlotDeleteButton}
                                             onPress={() => removeTimeSlot(idx)}
                                         >
-                                            <Ionicons name="trash" size={18} color="#dc3545"/>
+                                            <MaterialIcons name="delete" size={18} color="#dc3545"/>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -724,7 +727,7 @@ export const PrescriptionsTable = () => {
                                     setEditingTimeIndex(editedValues.reminderTimes.length - 1)
                                 }}
                             >
-                                <Ionicons name="add-circle" size={20} color="#28a745"/>
+                                <MaterialIcons name="add-circle" size={20} color="#28a745"/>
                                 <Text style={styles.addTimeButtonText}>Add Time Slot</Text>
                             </TouchableOpacity>
 
@@ -775,7 +778,6 @@ const styles = StyleSheet.create({
     },
     headerContainer: {
         marginTop: 10,
-        marginBottom: 10,
     },
     headerRow: {
         flexDirection: 'row',
