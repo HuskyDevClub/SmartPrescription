@@ -5,6 +5,7 @@ import {
     Alert,
     Linking,
     Modal,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -17,7 +18,7 @@ import {UserDataService} from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
 import {ImagePickerResult} from "expo-image-picker";
 import {AiService} from "@/components/services/AiService";
-import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
+import DateTimePicker, {DateTimePickerAndroid, DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Notifications from 'expo-notifications';
 import {PrescriptionService} from "@/components/services/PrescriptionService";
@@ -362,6 +363,9 @@ export const PrescriptionsTable = () => {
             } else {
                 editedValues.reminderTimes.push(theReminderTime);
             }
+            if (Platform.OS != 'ios') {
+                startEditingTimeIndex(-1)
+            }
         }
     };
 
@@ -648,9 +652,9 @@ export const PrescriptionsTable = () => {
                                 </Text>
                             </TouchableOpacity>
 
-                            <View style={[styles.buttonContainer, {marginTop: 15}]}>
-                                <View style={styles.splitBlockL}>
-                                    <Text style={styles.inputLabel}>Start At:</Text>
+                            <Text style={styles.inputLabel}>Start At:</Text>
+                            <View style={{marginBottom: 10}}>
+                                {Platform.OS === 'ios' ? (
                                     <DateTimePicker
                                         value={new Date(editedValues.startAt)}
                                         onChange={(_, theDate: Date | undefined) => setEditedValues({
@@ -659,9 +663,37 @@ export const PrescriptionsTable = () => {
                                         })}
                                         maximumDate={new Date(editedValues.endAt)}
                                     />
-                                </View>
-                                <View style={styles.splitBlockR}>
-                                    <Text style={styles.inputLabel}>End At:</Text>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={styles.timeButton}
+                                        onPress={() => {
+                                            DateTimePickerAndroid.open({
+                                                value: new Date(editedValues.startAt),
+                                                maximumDate: new Date(editedValues.endAt),
+                                                onChange: (event: DateTimePickerEvent, selectedDate: Date | undefined) => {
+                                                    if (event.type === "set" && selectedDate) {
+                                                        setEditedValues({
+                                                            ...editedValues,
+                                                            startAt: new Date(selectedDate)
+                                                        })
+                                                    }
+                                                }
+                                            });
+                                        }}
+                                    >
+                                        <Text>
+                                            {new Date(editedValues.startAt).toLocaleDateString(undefined, {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            })}
+                                        </Text>
+                                    </TouchableOpacity>)}
+                            </View>
+
+                            <Text style={styles.inputLabel}>End At:</Text>
+                            <View style={{marginBottom: 10}}>
+                                {Platform.OS === 'ios' ? (
                                     <DateTimePicker
                                         value={new Date(editedValues.endAt)}
                                         onChange={(_, theDate: Date | undefined) => setEditedValues({
@@ -670,7 +702,32 @@ export const PrescriptionsTable = () => {
                                         })}
                                         minimumDate={new Date(editedValues.startAt)}
                                     />
-                                </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={styles.timeButton}
+                                        onPress={() => {
+                                            DateTimePickerAndroid.open({
+                                                value: new Date(editedValues.endAt),
+                                                minimumDate: new Date(editedValues.startAt),
+                                                onChange: (event: DateTimePickerEvent, selectedDate: Date | undefined) => {
+                                                    if (event.type === "set" && selectedDate) {
+                                                        setEditedValues({
+                                                            ...editedValues,
+                                                            endAt: new Date(selectedDate)
+                                                        })
+                                                    }
+                                                }
+                                            });
+                                        }}
+                                    >
+                                        <Text>
+                                            {new Date(editedValues.endAt).toLocaleDateString(undefined, {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            })}
+                                        </Text>
+                                    </TouchableOpacity>)}
                             </View>
 
                             <Text style={styles.inputLabel}>Reminder Times:</Text>
@@ -692,7 +749,6 @@ export const PrescriptionsTable = () => {
                                             })()}
                                             mode="time"
                                             is24Hour={false}
-                                            display="default"
                                             onChange={onTimeChange}
                                         />
                                     ) : (
@@ -999,9 +1055,14 @@ const styles = StyleSheet.create({
         minWidth: 100,
         alignItems: 'center',
     },
-
     cancelButtonText: {
         color: 'white',
         fontWeight: 'bold',
     },
+    timeButton: {
+        padding: 10,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 6,
+        alignItems: 'center',
+    }
 });

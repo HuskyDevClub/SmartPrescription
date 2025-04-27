@@ -1,11 +1,10 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {Alert, StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
+import {Alert, Platform, StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
 import Slider from '@react-native-community/slider';
-import {SettingsService} from "@/components/services/SettingsService";
+import {SettingsService, ThreeMeals} from "@/components/services/SettingsService";
 import {PrescriptionService} from "@/components/services/PrescriptionService";
 import {useFocusEffect} from "expo-router";
-import DateTimePicker, {DateTimePickerEvent} from "@react-native-community/datetimepicker";
-import {DateService} from "@/components/services/DateService";
+import DateTimePicker, {DateTimePickerAndroid, DateTimePickerEvent} from "@react-native-community/datetimepicker";
 
 export const SettingsMenu = () => {
 
@@ -48,6 +47,47 @@ export const SettingsMenu = () => {
         ]);
     };
 
+    // Helper to handle time changes for all meals
+    const handleTimeChange = async (event: DateTimePickerEvent, selectedTime: Date | undefined, mealType: ThreeMeals) => {
+        if (event.type === "set" && selectedTime) {
+            if (mealType === ThreeMeals.Breakfast) {
+                SettingsService.current.breakfastTime.hours = selectedTime.getHours();
+                SettingsService.current.breakfastTime.minutes = selectedTime.getMinutes();
+            } else if (mealType === ThreeMeals.Lunch) {
+                SettingsService.current.lunchTime.hours = selectedTime.getHours();
+                SettingsService.current.lunchTime.minutes = selectedTime.getMinutes();
+            } else {
+                SettingsService.current.dinnerTime.hours = selectedTime.getHours();
+                SettingsService.current.dinnerTime.minutes = selectedTime.getMinutes();
+            }
+            await SettingsService.save();
+            setRefreshFlag(!refreshFlag);
+        }
+    };
+
+    // Function to show Android time picker
+    const showAndroidTimePicker = (mealType: ThreeMeals) => {
+        let hours: number, minutes: number;
+
+        if (mealType === ThreeMeals.Breakfast) {
+            hours = SettingsService.current.breakfastTime.hours;
+            minutes = SettingsService.current.breakfastTime.minutes;
+        } else if (mealType === ThreeMeals.Lunch) {
+            hours = SettingsService.current.lunchTime.hours;
+            minutes = SettingsService.current.lunchTime.minutes;
+        } else {
+            hours = SettingsService.current.dinnerTime.hours;
+            minutes = SettingsService.current.dinnerTime.minutes;
+        }
+
+        DateTimePickerAndroid.open({
+            value: new Date(2000, 1, 1, hours, minutes, 0, 0),
+            mode: 'time',
+            is24Hour: false,
+            onChange: (event, selectedTime) => handleTimeChange(event, selectedTime, mealType)
+        });
+    };
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Settings</Text>
@@ -83,6 +123,7 @@ export const SettingsMenu = () => {
             <View style={styles.settingItem}>
                 <Text style={styles.settingLabel}>Enable notifications</Text>
                 <Switch
+                    style={{alignSelf: "flex-start"}}
                     value={SettingsService.current.notificationsEnabled}
                     onValueChange={async (value) => {
                         await PrescriptionService.setNotificationsEnable(value)
@@ -93,66 +134,79 @@ export const SettingsMenu = () => {
                 />
             </View>
 
-            {/* Notifications Toggle */}
+            {/* Customize times section */}
             <View style={styles.settingItem}>
                 <Text style={styles.settingLabel}>Customize times</Text>
+
+                {/* Breakfast time picker */}
                 <View style={styles.rowContainer}>
                     <Text style={styles.subSettingLabel}>Breakfast</Text>
-                    <DateTimePicker
-                        value={(() => new Date(2000, 1, 1, SettingsService.current.breakfastTime.hours, SettingsService.current.breakfastTime.minutes, 0, 0))()}
-                        mode="time"
-                        is24Hour={false}
-                        display="default"
-                        onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => {
-                            if (event.type == "set" && selectedTime) {
-                                SettingsService.current.breakfastTime = {
-                                    ...DateService.getTime(selectedTime),
-                                    label: SettingsService.current.breakfastTime.label
-                                };
-                                await SettingsService.save();
-                            }
-                        }}
-                    />
+                    {Platform.OS === 'ios' ? (
+                        <DateTimePicker
+                            value={(() => new Date(2000, 1, 1, SettingsService.current.breakfastTime.hours, SettingsService.current.breakfastTime.minutes, 0, 0))()}
+                            mode="time"
+                            is24Hour={false}
+                            onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => handleTimeChange(event, selectedTime, ThreeMeals.Breakfast)}
+                        />
+                    ) : (
+                        <TouchableOpacity
+                            onPress={() => showAndroidTimePicker(ThreeMeals.Breakfast)}
+                            style={styles.timeButton}
+                        >
+                            <Text>
+                                {`${String(SettingsService.current.breakfastTime.hours).padStart(2, '0')}:${String(SettingsService.current.breakfastTime.minutes).padStart(2, '0')}`}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
+
+                {/* Lunchtime picker */}
                 <View style={styles.rowContainer}>
                     <Text style={styles.subSettingLabel}>Lunch</Text>
-                    <DateTimePicker
-                        value={(() => new Date(2000, 1, 1, SettingsService.current.lunchTime.hours, SettingsService.current.lunchTime.minutes, 0, 0))()}
-                        mode="time"
-                        is24Hour={false}
-                        display="default"
-                        onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => {
-                            if (event.type == "set" && selectedTime) {
-                                SettingsService.current.lunchTime = {
-                                    ...DateService.getTime(selectedTime),
-                                    label: SettingsService.current.lunchTime.label
-                                };
-                                await SettingsService.save();
-                            }
-                        }}
-                    />
+                    {Platform.OS === 'ios' ? (
+                        <DateTimePicker
+                            value={(() => new Date(2000, 1, 1, SettingsService.current.lunchTime.hours, SettingsService.current.lunchTime.minutes, 0, 0))()}
+                            mode="time"
+                            is24Hour={false}
+                            onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => handleTimeChange(event, selectedTime, ThreeMeals.Lunch)}
+                        />
+                    ) : (
+                        <TouchableOpacity
+                            onPress={() => showAndroidTimePicker(ThreeMeals.Lunch)}
+                            style={styles.timeButton}
+                        >
+                            <Text>
+                                {`${String(SettingsService.current.lunchTime.hours).padStart(2, '0')}:${String(SettingsService.current.lunchTime.minutes).padStart(2, '0')}`}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
+
+                {/* Dinner time picker */}
                 <View style={styles.rowContainer}>
                     <Text style={styles.subSettingLabel}>Dinner</Text>
-                    <DateTimePicker
-                        value={(() => new Date(2000, 1, 1, SettingsService.current.dinnerTime.hours, SettingsService.current.dinnerTime.minutes, 0, 0))()}
-                        mode="time"
-                        is24Hour={false}
-                        display="default"
-                        onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => {
-                            if (event.type == "set" && selectedTime) {
-                                SettingsService.current.dinnerTime = {
-                                    ...DateService.getTime(selectedTime),
-                                    label: SettingsService.current.dinnerTime.label
-                                };
-                                await SettingsService.save();
-                            }
-                        }}
-                    />
+                    {Platform.OS === 'ios' ? (
+                        <DateTimePicker
+                            value={(() => new Date(2000, 1, 1, SettingsService.current.dinnerTime.hours, SettingsService.current.dinnerTime.minutes, 0, 0))()}
+                            mode="time"
+                            is24Hour={false}
+                            display="default"
+                            onChange={async (event: DateTimePickerEvent, selectedTime?: Date) => handleTimeChange(event, selectedTime, ThreeMeals.Dinner)}
+                        />
+                    ) : (
+                        <TouchableOpacity
+                            onPress={() => showAndroidTimePicker(ThreeMeals.Dinner)}
+                            style={styles.timeButton}
+                        >
+                            <Text>
+                                {`${String(SettingsService.current.dinnerTime.hours).padStart(2, '0')}:${String(SettingsService.current.dinnerTime.minutes).padStart(2, '0')}`}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
 
-            {/* Font Size Selection */}
+            {/* Clear all prescriptions */}
             {PrescriptionService.notEmpty() && <View style={styles.settingItem}>
                 <Text style={styles.settingLabel}>Clear all prescriptions</Text>
                 <TouchableOpacity
@@ -248,4 +302,11 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: 8,
     },
+    timeButton: {
+        padding: 10,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 6,
+        minWidth: 80,
+        alignItems: 'center',
+    }
 });

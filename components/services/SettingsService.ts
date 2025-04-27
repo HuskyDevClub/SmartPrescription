@@ -11,15 +11,20 @@ interface SettingsState {
     dinnerTime: ReminderTime;
 }
 
+export enum ThreeMeals {
+    Breakfast = 'Breakfast',
+    Lunch = "Lunch",
+    Dinner = "Dinner",
+}
 
 export class SettingsService extends AbstractAsyncService {
 
     public static current: SettingsState = {
         snoozeTime: 5,
         notificationsEnabled: true,
-        breakfastTime: {hours: 8, minutes: 0, label: "Breakfast"},
-        lunchTime: {hours: 13, minutes: 0, label: "Lunch"},
-        dinnerTime: {hours: 18, minutes: 0, label: "Dinner"}
+        breakfastTime: {hours: 8, minutes: 0, label: ThreeMeals.Breakfast},
+        lunchTime: {hours: 13, minutes: 0, label: ThreeMeals.Lunch},
+        dinnerTime: {hours: 18, minutes: 0, label: ThreeMeals.Dinner}
     };
     private static isInitialized: boolean = false;
 
