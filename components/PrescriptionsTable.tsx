@@ -29,6 +29,7 @@ import Animated, {SharedValue, useAnimatedStyle} from 'react-native-reanimated';
 import {SettingsService} from "@/components/services/SettingsService";
 import {useFocusEffect} from "expo-router";
 import {RateLimiter} from "@/components/services/RateLimiter";
+import {ReminderTime} from "@/components/models/ReminderTime"
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -266,9 +267,10 @@ export const PrescriptionsTable = () => {
             // Set notification handler
             Notifications.setNotificationHandler({
                 handleNotification: async () => ({
-                    shouldShowAlert: true,
                     shouldPlaySound: true,
                     shouldSetBadge: true,
+                    shouldShowBanner: true,
+                    shouldShowList: true,
                 }),
             });
 
@@ -283,7 +285,9 @@ export const PrescriptionsTable = () => {
                     PrescriptionService.snoozeMedicationTaken(id, notificationId, intendedTakenTime)
                 } else if (actionIdentifier === 'SKIP_ACTION') {
                     // Dismiss the notification
-                    Notifications.dismissNotificationAsync(notificationId)
+                    if (typeof (notificationId) == "string") {
+                        Notifications.dismissNotificationAsync(notificationId)
+                    }
                 }
             });
 

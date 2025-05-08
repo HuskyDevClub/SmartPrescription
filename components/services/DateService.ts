@@ -1,3 +1,5 @@
+import {ReminderTime} from "@/components/models/ReminderTime";
+
 export class DateService {
     // Helper function to check if a date is same or before another date (day precision)
     public static isDateSameOrBefore(date1: number | string | Date, date2: number | string | Date): boolean {

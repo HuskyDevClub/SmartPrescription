@@ -1,5 +1,6 @@
 import {AbstractAsyncService} from "@/components/services/AbstractAsyncService";
 import {UserDataService} from "@/components/services/UserDataService";
+import {ReminderTime} from "@/components/models/ReminderTime";
 
 const NAME: string = "Settings"
 

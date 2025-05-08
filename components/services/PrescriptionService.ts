@@ -68,7 +68,10 @@ export class PrescriptionService extends AbstractAsyncService {
     }
 
     // Handle medication taken action
-    public static async handleMedicationTaken(id: string, notificationId: string): Promise<void> {
+    public static async handleMedicationTaken(id: string | unknown, notificationId: string | unknown): Promise<void> {
+        // Make sure ids are not unknown
+        if (typeof (id) != "string" || typeof (notificationId) != "string") return;
+
         // Find prescription with given id
         await this.init();
         const thePrescription: PrescriptionRecord | undefined = this.getPrescription(id);
@@ -94,16 +97,20 @@ export class PrescriptionService extends AbstractAsyncService {
     };
 
     // Handle medication taken action
-    public static async snoozeMedicationTaken(id: string, notificationId: string, intendedTakenTime: Date | null): Promise<void> {
+    public static async snoozeMedicationTaken(id: string | unknown, notificationId: string | unknown, intendedTakenTime: Date | null | unknown): Promise<void> {
+        // Make sure ids are not unknown
+        if (typeof (id) != "string" || typeof (notificationId) != "string") return;
+
         // The total time that has been snoozed so far
         let currentSnoozeTime: number = 0
         // If first time snooze, then note down the time it is intended to be taken
-        if (intendedTakenTime == null) {
-            intendedTakenTime = new Date();
-        } else {
-            intendedTakenTime = new Date(intendedTakenTime);
+        let theIntendedTakenTime: Date;
+        if (intendedTakenTime instanceof Date) {
+            theIntendedTakenTime = new Date(intendedTakenTime);
             // calculate the difference in minutes
-            currentSnoozeTime = Math.floor((new Date().getTime() - intendedTakenTime.getTime()) / 60000);
+            currentSnoozeTime = Math.floor((new Date().getTime() - theIntendedTakenTime.getTime()) / 60000);
+        } else {
+            theIntendedTakenTime = new Date();
         }
 
         // Continue to schedule the notification if less than 60 min
@@ -114,15 +121,15 @@ export class PrescriptionService extends AbstractAsyncService {
             // If we cannot find the perception for some reason, then do not reschedule notification
             if (thePrescription === undefined) return;
             // The notification identifier
-            const notificationIdentifier: string = `${thePrescription.id}_${intendedTakenTime.getTime()}_snoozed`
+            const notificationIdentifier: string = `${thePrescription.id}_${theIntendedTakenTime.getTime()}_snoozed`
             // Reschedule notification
             await Notifications.scheduleNotificationAsync({
-                content: this.getNotificationContent(thePrescription, notificationIdentifier, intendedTakenTime),
+                content: this.getNotificationContent(thePrescription, notificationIdentifier, theIntendedTakenTime),
                 trigger: {
                     type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                     seconds: SettingsService.current.snoozeTime * 60
                 },
-                identifier: notificationIdentifier
+                identifier: notificationIdentifier,
             });
         }
 
@@ -266,6 +273,7 @@ export class PrescriptionService extends AbstractAsyncService {
                 notificationId,
                 intendedTakenTime
             },
+            autoDismiss: false,
             categoryIdentifier: 'medication-reminder',
         }
     }

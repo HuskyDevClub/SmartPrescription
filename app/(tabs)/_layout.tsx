@@ -3,7 +3,6 @@ import React from 'react';
 import {Platform} from 'react-native';
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import TabBarBackground from '@/components/ui/TabBarBackground';
 import {Colors} from '@/constants/Colors';
 import {useColorScheme} from '@/hooks/useColorScheme';
 
@@ -15,7 +14,6 @@ export default function TabLayout() {
             screenOptions={{
                 tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
                 headerShown: false,
-                tabBarBackground: TabBarBackground,
                 tabBarStyle: Platform.select({
                     ios: {
                         // Use a transparent background on iOS to show the blur effect
