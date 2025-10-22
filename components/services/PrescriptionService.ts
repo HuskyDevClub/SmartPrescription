@@ -1,9 +1,9 @@
-import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
-import {UserDataService} from "@/components/services/UserDataService";
+import { PrescriptionRecord } from "@/components/models/MedicalPrescription";
+import { UserDataService } from "@/components/services/UserDataService";
 import * as Notifications from 'expo-notifications';
-import {NotificationContentInput, SchedulableTriggerInputTypes} from 'expo-notifications';
-import {AbstractAsyncService} from "@/components/services/AbstractAsyncService";
-import {SettingsService} from "@/components/services/SettingsService";
+import { NotificationContentInput, SchedulableTriggerInputTypes } from 'expo-notifications';
+import { AbstractAsyncService } from "@/components/services/AbstractAsyncService";
+import { SettingsService } from "@/components/services/SettingsService";
 
 const NAME: string = "Prescriptions";
 

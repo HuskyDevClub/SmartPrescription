@@ -1,6 +1,6 @@
 import React from "react";
-import {SettingsMenu} from "@/components/SettingsMenu";
-import {SafeAreaView, ScrollView} from "react-native";
+import { SettingsMenu } from "@/components/SettingsMenu";
+import { SafeAreaView, ScrollView } from "react-native";
 
 export default function SettingsScreen() {
     return (

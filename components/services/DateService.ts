@@ -1,4 +1,4 @@
-import {ReminderTime} from "@/components/models/ReminderTime";
+import { ReminderTime } from "@/components/models/ReminderTime";
 
 export class DateService {
     // Helper function to check if a date is same or before another date (day precision)

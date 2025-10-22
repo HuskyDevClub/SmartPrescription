@@ -1,10 +1,10 @@
-import React, {useCallback, useEffect, useState} from 'react';
-import {Alert, Platform, StyleSheet, Switch, Text, TouchableOpacity, View,} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, Platform, StyleSheet, Switch, Text, TouchableOpacity, View, } from 'react-native';
 import Slider from '@react-native-community/slider';
-import {SettingsService, ThreeMeals} from "@/components/services/SettingsService";
-import {PrescriptionService} from "@/components/services/PrescriptionService";
-import {useFocusEffect} from "expo-router";
-import DateTimePicker, {DateTimePickerAndroid, DateTimePickerEvent} from "@react-native-community/datetimepicker";
+import { SettingsService, ThreeMeals } from "@/components/services/SettingsService";
+import { PrescriptionService } from "@/components/services/PrescriptionService";
+import { useFocusEffect } from "expo-router";
+import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 export const SettingsMenu = () => {
 
@@ -208,15 +208,15 @@ export const SettingsMenu = () => {
 
             {/* Clear all prescriptions */}
             {PrescriptionService.notEmpty() && <View style={styles.settingItem}>
-                <Text style={styles.settingLabel}>Clear all prescriptions</Text>
-                <TouchableOpacity
-                    style={styles.fontSizeButton}
-                    onPress={handleClearAll}
-                >
-                    <Text>
-                        Clear all
-                    </Text>
-                </TouchableOpacity>
+              <Text style={styles.settingLabel}>Clear all prescriptions</Text>
+              <TouchableOpacity
+                style={styles.fontSizeButton}
+                onPress={handleClearAll}
+              >
+                <Text>
+                  Clear all
+                </Text>
+              </TouchableOpacity>
             </View>}
         </View>
     );

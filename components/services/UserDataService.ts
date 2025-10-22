@@ -1,11 +1,9 @@
-// require the module
-import * as FileSystem from 'expo-file-system';
-import {AbstractAsyncService} from "@/components/services/AbstractAsyncService";
+import { File, Paths } from 'expo-file-system';
+import { AbstractAsyncService } from "@/components/services/AbstractAsyncService";
 
-const PATH: string = FileSystem.documentDirectory + "userData.json";
+const PATH: string = Paths.document.uri + "userData.json";
 
 export class UserDataService extends AbstractAsyncService {
-
     private static isInitialized: boolean = false;
     private static VALUES: Record<string, any> = {};
 
@@ -38,8 +36,12 @@ export class UserDataService extends AbstractAsyncService {
     // Save the config file
     public static async save(): Promise<void> {
         try {
-            await FileSystem.writeAsStringAsync(PATH, JSON.stringify(this.VALUES, null, 2), {encoding: "utf8"});
-            // console.log(this.VALUES)
+            const file = new File(PATH);
+            // Create the file if it doesn't exist
+            if (!file.exists) {
+                file.create();
+            }
+            file.write(JSON.stringify(this.VALUES, null, 2));
         } catch (error) {
             console.error('Error saving config file:', error);
         }
@@ -47,11 +49,10 @@ export class UserDataService extends AbstractAsyncService {
 
     // Create or load the existing user data file
     protected static override async initialize(): Promise<void> {
-        if (!(await FileSystem.getInfoAsync(PATH)).exists) return;
-        const data: string = await FileSystem.readAsStringAsync(PATH, {encoding: "utf8"});
+        const file = new File(PATH);
+        if (!file.exists) return;
+        const data: string = await file.text();
         this.VALUES = JSON.parse(data);
-        // this.VALUES = {};
-        // await this.save();
     }
 
     protected static override getInit(): boolean {
@@ -59,6 +60,6 @@ export class UserDataService extends AbstractAsyncService {
     }
 
     protected static override setInit(status: boolean): void {
-        this.isInitialized = status
+        this.isInitialized = status;
     }
 }

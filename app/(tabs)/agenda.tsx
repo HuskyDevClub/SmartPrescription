@@ -1,6 +1,6 @@
 import React from "react";
-import {PrescriptionAgenda} from "@/components/PrescriptionAgenda";
-import {SafeAreaView, ScrollView} from "react-native";
+import { PrescriptionAgenda } from "@/components/PrescriptionAgenda";
+import { SafeAreaView, ScrollView } from "react-native";
 
 export default function AgendaScreen() {
     return (

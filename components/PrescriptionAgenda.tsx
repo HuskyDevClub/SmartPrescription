@@ -1,11 +1,11 @@
-import React, {useCallback, useEffect, useState} from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {Calendar} from 'react-native-calendars';
-import {PrescriptionRecord} from "@/components/models/MedicalPrescription";
-import {PrescriptionService} from "@/components/services/PrescriptionService";
-import {DateService} from "@/components/services/DateService";
-import {UserDataService} from "@/components/services/UserDataService";
-import {useFocusEffect} from "expo-router";
+import React, { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
+import { PrescriptionRecord } from "@/components/models/MedicalPrescription";
+import { PrescriptionService } from "@/components/services/PrescriptionService";
+import { DateService } from "@/components/services/DateService";
+import { UserDataService } from "@/components/services/UserDataService";
+import { useFocusEffect } from "expo-router";
 
 export const PrescriptionAgenda = () => {
     const [markedDates, setMarkedDates] = useState<any>({});

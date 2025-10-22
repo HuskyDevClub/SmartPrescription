@@ -1,5 +1,5 @@
-import React, {useCallback, useEffect, useState} from 'react';
-import {MedicalPrescription, PrescriptionRecord} from "@/components/models/MedicalPrescription";
+import React, { useCallback, useEffect, useState } from 'react';
+import { MedicalPrescription, PrescriptionRecord } from "@/components/models/MedicalPrescription";
 import {
     ActivityIndicator,
     Alert,
@@ -14,22 +14,22 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import {UserDataService} from "@/components/services/UserDataService";
+import { UserDataService } from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
-import {ImagePickerResult} from "expo-image-picker";
-import {AiService} from "@/components/services/AiService";
-import DateTimePicker, {DateTimePickerAndroid, DateTimePickerEvent} from '@react-native-community/datetimepicker';
+import { ImagePickerResult } from "expo-image-picker";
+import { AiService } from "@/components/services/AiService";
+import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Notifications from 'expo-notifications';
-import {PrescriptionService} from "@/components/services/PrescriptionService";
-import {DateService} from "@/components/services/DateService";
-import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import { PrescriptionService } from "@/components/services/PrescriptionService";
+import { DateService } from "@/components/services/DateService";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import Animated, {SharedValue, useAnimatedStyle} from 'react-native-reanimated';
-import {SettingsService} from "@/components/services/SettingsService";
-import {useFocusEffect} from "expo-router";
-import {RateLimiter} from "@/components/services/RateLimiter";
-import {ReminderTime} from "@/components/models/ReminderTime"
+import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import { SettingsService } from "@/components/services/SettingsService";
+import { useFocusEffect } from "expo-router";
+import { RateLimiter } from "@/components/services/RateLimiter";
+import { ReminderTime } from "@/components/models/ReminderTime"
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -542,33 +542,33 @@ export const PrescriptionsTable = () => {
                 </View>
 
                 {isLoading && <Modal
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => {
-                        if (abortController) {
-                            abortController.abort();
-                        }
-                    }}
+                  transparent={true}
+                  animationType="fade"
+                  onRequestClose={() => {
+                      if (abortController) {
+                          abortController.abort();
+                      }
+                  }}
                 >
-                    <View style={styles.modalBackground}>
-                        <View style={styles.spinnerContainer}>
-                            <ActivityIndicator
-                                size="large"
-                                color="#0275d8"
-                            />
-                            <Text style={styles.loadingText}>Processing prescription...</Text>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => {
-                                    if (abortController) {
-                                        abortController.abort();
-                                    }
-                                }}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
+                  <View style={styles.modalBackground}>
+                    <View style={styles.spinnerContainer}>
+                      <ActivityIndicator
+                        size="large"
+                        color="#0275d8"
+                      />
+                      <Text style={styles.loadingText}>Processing prescription...</Text>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => {
+                            if (abortController) {
+                                abortController.abort();
+                            }
+                        }}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
                     </View>
+                  </View>
                 </Modal>}
 
                 {PrescriptionService.getActivePrescriptions().length > 0 && (
@@ -598,10 +598,10 @@ export const PrescriptionsTable = () => {
                                     onChangeText={(text: string) => setEditedValues({...editedValues, name: text})}
                                 />
                                 {editedValues.name && <TouchableOpacity
-                                    style={{flex: 1, alignItems: 'center'}}
-                                    onPress={() => Linking.openURL(`https://www.google.com/search?q=${editedValues.name}`)}
+                                  style={{flex: 1, alignItems: 'center'}}
+                                  onPress={() => Linking.openURL(`https://www.google.com/search?q=${editedValues.name}`)}
                                 >
-                                    <MaterialIcons name="link" size={28} color="blue"/>
+                                  <MaterialIcons name="link" size={28} color="blue"/>
                                 </TouchableOpacity>}
                             </View>
 

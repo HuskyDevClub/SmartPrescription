@@ -1,4 +1,4 @@
-import {ReminderTime} from "@/components/models/ReminderTime";
+import { ReminderTime } from "@/components/models/ReminderTime";
 
 export interface AbstractMedicalPrescription {
     name: string;

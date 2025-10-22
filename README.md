@@ -1,55 +1,80 @@
-# Welcome to your Expo app 👋
+# SmartPrescription
 
-This is an [Expo](https://expo.dev) project created with [
-`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+SmartPrescription is a cross-platform mobile app built with Expo and React Native to help users manage, track, and be
+reminded of their medical prescriptions. The app provides a user-friendly interface for adding, viewing, and organizing
+prescriptions, as well as receiving timely reminders.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Add, edit, and delete medical prescriptions
+- View prescriptions in a calendar agenda and table format
+- Receive reminders for medication times
+- Manage user settings and preferences
+- AI-powered prescription extraction (using Azure AI Inference)
 
-   ```bash
-   npm install
-   ```
+## Getting Started
 
-2. Start the app
+### Prerequisites
 
-   ```bash
-    npx expo start
-   ```
+- [Node.js](https://nodejs.org/) (v18 or newer recommended)
+- [Expo CLI](https://docs.expo.dev/get-started/installation/)
 
-In the output, you'll find options to open the app in a
+### Installation
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+1. Clone the repository:
 
-You can start developing by editing the files inside the **app** directory. This project
-uses [file-based routing](https://docs.expo.dev/router/introduction).
+  ```bash
+  git clone https://github.com/yudonglin/SmartPrescription.git
+  cd SmartPrescription
+  ```
 
-## Get a fresh project
+2. Install dependencies:
 
-When you're ready, run:
+  ```bash
+  npm install
+  ```
+
+### Running the App
+
+Start the Expo development server:
+
+```bash
+npx expo start
+```
+
+You can then run the app on your device using Expo Go, or in an emulator/simulator for Android or iOS.
+
+### Resetting the Project
+
+To reset the project to a blank state:
 
 ```bash
 npm run reset-project
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you
-can start developing.
+## Project Structure
 
-## Learn more
+- `app/` - Main app screens and navigation (file-based routing)
+- `components/` - Reusable UI components
+- `models/` - Data models and schemas
+- `services/` - Business logic and data services
+- `constants/` - App-wide constants (e.g., colors)
+- `hooks/` - Custom React hooks
+- `assets/` - Fonts and images
+- `scripts/` - Utility scripts
 
-To learn more about developing your project with Expo, look at the following resources:
+## Tech Stack
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with
-  our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll
-  create a project that runs on Android, iOS, and the web.
+- [Expo](https://expo.dev/) & [React Native](https://reactnative.dev/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Azure AI Inference](https://learn.microsoft.com/en-us/azure/ai-services/)
+- [React Navigation](https://reactnavigation.org/)
+- [Jest](https://jestjs.io/) for testing
 
-## Join the community
+## Contributing
 
-Join our community of developers creating universal apps.
+Contributions are welcome! Please open issues or submit pull requests for improvements and bug fixes.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

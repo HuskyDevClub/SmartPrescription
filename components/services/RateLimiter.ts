@@ -2,7 +2,7 @@
  * RateLimiter class for React Native
  * Limits a function to a maximum number of calls within a specified time window
  */
-import {UserDataService} from "@/components/services/UserDataService";
+import { UserDataService } from "@/components/services/UserDataService";
 
 export class RateLimiter {
     private readonly storageKey: string;
