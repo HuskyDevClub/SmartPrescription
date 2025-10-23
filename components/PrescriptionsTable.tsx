@@ -6,7 +6,6 @@ import {
     Linking,
     Modal,
     Platform,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -14,6 +13,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserDataService } from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
 import { ImagePickerResult } from "expo-image-picker";
@@ -44,7 +44,7 @@ export const PrescriptionsTable = () => {
 
     // Create a rate limiter instance for API calls - 10 calls per hour (3,600,000 milliseconds)
     const apiRateLimiter: RateLimiter = new RateLimiter('ai_api_calls', 10, 1000 * 60 * 10);
-    // Create rate-limited version of the function
+    // Create a rate-limited version of the function
     const rateLimitedGetImageText = apiRateLimiter.limit(AiService.getImageText);
 
     // Handler for edit button
@@ -117,7 +117,7 @@ export const PrescriptionsTable = () => {
         setAttachments([])
         // Request permission
         await ImagePicker.requestCameraPermissionsAsync()
-        // Launch camera for taking photo
+        // Launch camera for taking a photo
         const result: ImagePickerResult = await ImagePicker.launchCameraAsync({
             base64: true,
         });
@@ -132,7 +132,7 @@ export const PrescriptionsTable = () => {
         setAttachments([])
         // Request permission
         await ImagePicker.requestMediaLibraryPermissionsAsync()
-        // Prompt user for selecting photo
+        // Prompt user for selecting a photo
         const result: ImagePickerResult = await ImagePicker.launchImageLibraryAsync({
             base64: true,
         });
@@ -163,7 +163,7 @@ export const PrescriptionsTable = () => {
                 // Create a cancellable promise
                 const apiCallPromise = rateLimitedGetImageText(attachments);
 
-                // Create a promise that resolves when user cancels
+                // Create a promise that resolves when the user cancels
                 const abortPromise = new Promise((_, reject) => {
                     controller.signal.addEventListener('abort', () => {
                         reject(new Error('Operation cancelled by user'));
@@ -206,16 +206,16 @@ export const PrescriptionsTable = () => {
                             };
                             // Add time according to Frequency
                             const frequencyTable: string[] = p.frequency.split("-")
-                            if (frequencyTable.at(0) == "1") {
+                            if (frequencyTable.at(0) === "1") {
                                 newItem.reminderTimes.push({...SettingsService.current.breakfastTime});
                             }
-                            if (frequencyTable.at(1) == "1") {
+                            if (frequencyTable.at(1) === "1") {
                                 newItem.reminderTimes.push({...SettingsService.current.lunchTime});
                             }
-                            if (frequencyTable.at(2) == "1") {
+                            if (frequencyTable.at(2) === "1") {
                                 newItem.reminderTimes.push({...SettingsService.current.dinnerTime});
                             }
-                            // Schedule notifications for new item
+                            // Schedule notifications for the new item
                             await PrescriptionService.addPrescription(newItem);
                         }
                         Alert.alert("Succeed", `In total of ${allPrescriptionsExtracted.length} medication(s) has been extracted. Please double-check the identified medication(s)!`);
@@ -234,7 +234,7 @@ export const PrescriptionsTable = () => {
                     Alert.alert('Invalid Image', 'Please try again!');
                 }
             } finally {
-                // Hide loading spinner regardless of success or failure
+                // Hide the loading spinner regardless of success or failure
                 setIsLoading(false);
                 setAbortController(null);
             }
@@ -274,7 +274,7 @@ export const PrescriptionsTable = () => {
                 }),
             });
 
-            // Set up notification response handler for action buttons
+            // Set up a notification response handler for action buttons
             const subscription = Notifications.addNotificationResponseReceivedListener(response => {
                 const {actionIdentifier, notification} = response;
                 const {id, notificationId, intendedTakenTime} = notification.request.content.data;
@@ -318,7 +318,7 @@ export const PrescriptionsTable = () => {
             if (!existingReminder) {
                 uniqueTimes.set(theTimeKey, reminder);
             }
-            // If this time exists but current reminder has a label and existing one doesn't, replace it
+            // If this time exists but the current reminder has a label and the existing one doesn't, replace it
             else if (reminder.label && !existingReminder.label) {
                 uniqueTimes.set(theTimeKey, reminder);
             }
@@ -354,9 +354,9 @@ export const PrescriptionsTable = () => {
 
     // Handle time picker change
     const onTimeChange = (event: DateTimePickerEvent, selectedTime?: Date): void => {
-        if (event.type == "dismissed") {
+        if (event.type === "dismissed") {
             startEditingTimeIndex(-1)
-        } else if (event.type == "set" && selectedTime) {
+        } else if (event.type === "set" && selectedTime) {
             const theReminderTime: ReminderTime = DateService.getTime(selectedTime);
             if (editingTimeIndex >= 0 && editingTimeIndex < editedValues.reminderTimes.length) {
                 // Update existing time slot
@@ -367,7 +367,7 @@ export const PrescriptionsTable = () => {
             } else {
                 editedValues.reminderTimes.push(theReminderTime);
             }
-            if (Platform.OS != 'ios') {
+            if (Platform.OS !== 'ios') {
                 startEditingTimeIndex(-1)
             }
         }
@@ -386,7 +386,7 @@ export const PrescriptionsTable = () => {
     // Render expired prescription(s)
     const RenderArchivedPrescriptions: React.FC = () => {
         const expiredPrescriptions: PrescriptionRecord[] = PrescriptionService.getArchivedPrescriptions()
-        if (expiredPrescriptions.length == 0) {
+        if (expiredPrescriptions.length === 0) {
             return (<View/>);
         }
         return (
@@ -403,7 +403,7 @@ export const PrescriptionsTable = () => {
     // Render active prescription(s)
     const RenderActivePrescriptions: React.FC = () => {
         const activePrescriptions: PrescriptionRecord[] = PrescriptionService.getActivePrescriptions()
-        if (activePrescriptions.length == 0) {
+        if (activePrescriptions.length === 0) {
             return (<View/>);
         }
         return (
@@ -423,7 +423,7 @@ export const PrescriptionsTable = () => {
         </View>
     );
 
-    // Render item for list
+    // Render item for the given list
     const renderItem = (item: PrescriptionRecord, index: number): React.ReactElement => {
 
         function RightAction(_: SharedValue<number>, drag: SharedValue<number>) {
@@ -510,7 +510,7 @@ export const PrescriptionsTable = () => {
                             <Text style={[styles.cell, {color: "red"}]}>
                                 {PrescriptionService.calculateDosesTakenSoFar(item) - item.taken.filter(t => {
                                     const takenTime = new Date(t);
-                                    return item.reminderTimes.find(rt => rt.minutes == takenTime.getMinutes() && rt.hours == takenTime.getHours())
+                                    return item.reminderTimes.find(rt => rt.minutes === takenTime.getMinutes() && rt.hours === takenTime.getHours())
                                 }).length}
                             </Text>
                         </View>
@@ -740,7 +740,7 @@ export const PrescriptionsTable = () => {
                             {editedValues.reminderTimes && editedValues.reminderTimes.map((timeObj, idx) => (
                                 <View key={idx} style={styles.timeSlotContainer}>
                                     {/* Time picker (shown when adding/editing a time) */}
-                                    {editingTimeIndex == idx ? (
+                                    {editingTimeIndex === idx ? (
                                         <DateTimePicker
                                             value={(() => {
                                                 const date = new Date();
@@ -779,7 +779,7 @@ export const PrescriptionsTable = () => {
                                 </View>
                             ))}
 
-                            {/* Add new time slot button */}
+                            {/* Add a new time slot button */}
                             <TouchableOpacity
                                 style={styles.addTimeButton}
                                 onPress={() => {
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
     },
     modalBackground: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dim the screen with semi-transparent background
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dim the screen with a semi-transparent background
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
         padding: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        minWidth: 200, // Add some minimum width for better layout
+        minWidth: 200, // Add some minimum width for a better layout
     },
     loadingText: {
         marginTop: 10,

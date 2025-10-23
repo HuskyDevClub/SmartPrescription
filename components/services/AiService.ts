@@ -1,9 +1,11 @@
 import ModelClient from "@azure-rest/ai-inference";
-import {AzureKeyCredential} from "@azure/core-auth";
+import { AzureKeyCredential } from "@azure/core-auth";
 import PrescriptionsSchema from "@/components/models/PrescriptionsSchema.json";
 
-// Azure OpenAI Service endpoint
-const AZURE_AI_MODEL_INFERENCE_ENDPOINT: string = ""
+// Azure AI Services endpoint
+const AZURE_AI_SERVICES_ENDPOINT: string = ""
+// Azure AI models endpoint
+const AZURE_AI_MODEL_INFERENCE_ENDPOINT: string = `${AZURE_AI_SERVICES_ENDPOINT}/models`
 // API Key
 const API_KEY: string = ""
 // the model client

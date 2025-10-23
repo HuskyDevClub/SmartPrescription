@@ -143,3 +143,4 @@ expo-env.d.ts
 /backend/bin
 /backend/obj
 /.expo
+package-lock.json
