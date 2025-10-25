@@ -1,10 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, StyleSheet, Switch, Text, TouchableOpacity, View, } from 'react-native';
+import {
+    ActivityIndicator,
+    Alert,
+    Platform,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SettingsService, ThreeMeals } from "@/components/services/SettingsService";
 import { PrescriptionService } from "@/components/services/PrescriptionService";
 import { useFocusEffect } from "expo-router";
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { AuthService } from "@/components/services/AuthService";
 
 export const SettingsMenu = () => {
 
@@ -12,6 +23,10 @@ export const SettingsMenu = () => {
 
     const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
     const [updateFlag, setUpdateFlag] = useState<boolean>(false);
+    const [email, setEmail] = useState<string>("");
+    const [password, setPassword] = useState<string>("");
+    const [authLoading, setAuthLoading] = useState<boolean>(false);
+    const [authError, setAuthError] = useState<string>("");
 
     useFocusEffect(
         useCallback(() => {
@@ -23,7 +38,7 @@ export const SettingsMenu = () => {
 
     useEffect(() => {
         async function init(): Promise<void> {
-            await SettingsService.init()
+            await Promise.all([SettingsService.init(), AuthService.init()]);
             setRefreshFlag(!refreshFlag);
         }
 
@@ -91,6 +106,88 @@ export const SettingsMenu = () => {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Settings</Text>
+
+            {/* Auth Section */}
+            <View style={styles.settingItem}>
+                <Text style={styles.settingLabel}>Account</Text>
+                {!AuthService.isAuthenticated() ? (
+                    <View>
+                        <TextInput
+                            placeholder="Email"
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                            value={email}
+                            onChangeText={setEmail}
+                            style={styles.input}
+                        />
+                        <TextInput
+                            placeholder="Password"
+                            secureTextEntry
+                            value={password}
+                            onChangeText={setPassword}
+                            style={styles.input}
+                        />
+                        {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
+                        <View style={styles.authButtonsRow}>
+                            <TouchableOpacity
+                                style={[styles.actionButton]}
+                                disabled={authLoading}
+                                onPress={async () => {
+                                    setAuthError("");
+                                    setAuthLoading(true);
+                                    try {
+                                        await AuthService.login(email.trim(), password);
+                                        setEmail("");
+                                        setPassword("");
+                                    } catch (e: any) {
+                                        setAuthError(e?.message || 'Login failed');
+                                    } finally {
+                                        setAuthLoading(false);
+                                        setRefreshFlag(!refreshFlag);
+                                    }
+                                }}
+                            >
+                                {authLoading ? <ActivityIndicator color="#fff"/> :
+                                    <Text style={styles.actionButtonText}>Login</Text>}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.secondaryButton]}
+                                disabled={authLoading}
+                                onPress={async () => {
+                                    setAuthError("");
+                                    setAuthLoading(true);
+                                    try {
+                                        await AuthService.register(email.trim(), password);
+                                        setEmail("");
+                                        setPassword("");
+                                    } catch (e: any) {
+                                        setAuthError(e?.message || 'Register failed');
+                                    } finally {
+                                        setAuthLoading(false);
+                                        setRefreshFlag(!refreshFlag);
+                                    }
+                                }}
+                            >
+                                {authLoading ? <ActivityIndicator color="#fff"/> :
+                                    <Text style={styles.actionButtonText}>Register</Text>}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ) : (
+                    <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                        <Text style={styles.settingValue}>Signed in as {AuthService.current.user?.email}</Text>
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.dangerButton]}
+                            onPress={async () => {
+                                await AuthService.logout();
+                                setRefreshFlag(!refreshFlag);
+                            }}
+                        >
+                            <Text style={styles.actionButtonText}>Logout</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
 
             {/* Snooze Time Slider */}
             <View style={styles.settingItem}>
@@ -308,5 +405,40 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         minWidth: 80,
         alignItems: 'center',
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        marginBottom: 8,
+    },
+    actionButton: {
+        backgroundColor: '#4B7BEC',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 6,
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    secondaryButton: {
+        backgroundColor: '#6C63FF',
+    },
+    dangerButton: {
+        backgroundColor: '#FF6B6B',
+    },
+    actionButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    errorText: {
+        color: '#FF3B30',
+        marginBottom: 8,
+    },
+    authButtonsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start'
     }
 });

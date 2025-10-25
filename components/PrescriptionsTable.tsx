@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserDataService } from "@/components/services/UserDataService";
 import * as ImagePicker from "expo-image-picker";
 import { ImagePickerResult } from "expo-image-picker";
-import { AiService } from "@/components/services/AiService";
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Notifications from 'expo-notifications';
@@ -28,8 +27,8 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { SettingsService } from "@/components/services/SettingsService";
 import { useFocusEffect } from "expo-router";
-import { RateLimiter } from "@/components/services/RateLimiter";
 import { ReminderTime } from "@/components/models/ReminderTime"
+import { API_BASE_URL } from "./services/AuthService";
 
 export const PrescriptionsTable = () => {
     const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -41,11 +40,6 @@ export const PrescriptionsTable = () => {
     const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
     const [updateFlag, setUpdateFlag] = useState<boolean>(false);
     const [abortController, setAbortController] = useState<AbortController | null>(null);
-
-    // Create a rate limiter instance for API calls - 10 calls per hour (3,600,000 milliseconds)
-    const apiRateLimiter: RateLimiter = new RateLimiter('ai_api_calls', 10, 1000 * 60 * 10);
-    // Create a rate-limited version of the function
-    const rateLimitedGetImageText = apiRateLimiter.limit(AiService.getImageText);
 
     // Handler for edit button
     const handleEdit = (item: PrescriptionRecord): void => {
@@ -160,8 +154,6 @@ export const PrescriptionsTable = () => {
             setAbortController(controller);
 
             try {
-                // Create a cancellable promise
-                const apiCallPromise = rateLimitedGetImageText(attachments);
 
                 // Create a promise that resolves when the user cancels
                 const abortPromise = new Promise((_, reject) => {
@@ -170,21 +162,30 @@ export const PrescriptionsTable = () => {
                     });
                 });
 
+                // Create the fetch promise with abort signal
+                const getImageText = fetch(`${API_BASE_URL}/ai/parseDrugsImage`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({base64: attachments[0]}),
+                    signal: controller.signal, // Pass the abort signal directly to fetch
+                });
+
                 // Race between the API call and the abort operation
-                const response = await Promise.race([apiCallPromise, abortPromise]);
+                const response: any = await Promise.race([getImageText, abortPromise]);
+
+                // Parse the response body
+                const data = await response.json();
 
                 // Rest of your existing processing logic...
                 if (__DEV__) {
-                    console.log(response.body)
-                    console.log(`Time Until Reset: ${await apiRateLimiter.getTimeUntilReset()}`)
-                    console.log(`Remaining Calls: ${await apiRateLimiter.getRemainingCalls()}`)
-                    if (response.body.error) {
-                        console.log(response.body.error)
+                    console.log(data)
+                    if (data.error) {
+                        console.log(data.error)
                     } else {
-                        console.log(response.body.choices[0].message?.content)
+                        console.log(data.choices[0].message?.content)
                     }
                 }
-                const result: Record<string, MedicalPrescription> = JSON.parse(response.body.choices[0].message?.content)
+                const result: Record<string, MedicalPrescription> = JSON.parse(data.choices[0].message?.content)
                 // Trigger adding a new prescription from the parent component
                 if (result) {
                     const allPrescriptionsExtracted: MedicalPrescription[] = Object.values(result);
