@@ -21,12 +21,10 @@ prescriptions, as well as receiving timely reminders.
   <img src="screenshot/settings.png" alt="Settings" width="200"/>
 </div>
 
-
 - **Home Screen**: View all your prescriptions in a table format with quick access to add new ones
 - **Edit Prescription**: Add or edit prescription details including medication name, dosage, frequency, and reminders
 - **Calendar View**: See your medications scheduled in an agenda format for easy daily planning
 - **Settings**: Manage your profile, notification preferences, and app settings
-
 
 ## Getting Started
 

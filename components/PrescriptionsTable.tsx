@@ -26,11 +26,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { SettingsService } from "@/components/services/SettingsService";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { ReminderTime } from "@/components/models/ReminderTime"
-import { API_BASE_URL } from "./services/AuthService";
+import { API_BASE_URL, AuthService } from "./services/AuthService";
 
 export const PrescriptionsTable = () => {
+    const router = useRouter();
     const [modalVisible, setModalVisible] = useState<boolean>(false);
     const [editItem, setEditItem] = useState<PrescriptionRecord | null>(null);
     const [editedValues, setEditedValues] = useState<PrescriptionRecord>(PrescriptionService.new());
@@ -40,6 +41,7 @@ export const PrescriptionsTable = () => {
     const [refreshFlag, setRefreshFlag] = useState<boolean>(false);
     const [updateFlag, setUpdateFlag] = useState<boolean>(false);
     const [abortController, setAbortController] = useState<AbortController | null>(null);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
     // Handler for edit button
     const handleEdit = (item: PrescriptionRecord): void => {
@@ -105,8 +107,41 @@ export const PrescriptionsTable = () => {
         setModalVisible(true);
     }
 
+    // Show a login /register prompt
+    const showAuthPrompt = (feature: string): void => {
+        Alert.alert(
+            'Login Required',
+            `Please sign in or create an account to use the ${feature} feature.`,
+            [
+                {
+                    text: 'Cancel',
+                },
+                {
+                    text: 'Sign In',
+                    onPress: () => {
+                        // Navigate to the settings page where auth is handled
+                        router.push('/(tabs)/settings');
+                    }
+                },
+                {
+                    text: 'Create Account',
+                    onPress: () => {
+                        // Navigate to the settings page where auth is handled
+                        router.push('/(tabs)/settings');
+                    },
+                },
+            ]
+        );
+    };
+
 
     async function takePrescriptionPhoto(): Promise<void> {
+        // Check authentication first
+        if (!isAuthenticated) {
+            showAuthPrompt('camera');
+            return;
+        }
+
         // Clear attachments
         setAttachments([])
         // Request permission
@@ -122,6 +157,12 @@ export const PrescriptionsTable = () => {
     }
 
     async function selectPrescriptionPhoto(): Promise<void> {
+        // Check authentication first
+        if (!isAuthenticated) {
+            showAuthPrompt('photo upload');
+            return;
+        }
+
         // Clear attachments
         setAttachments([])
         // Request permission
@@ -162,16 +203,46 @@ export const PrescriptionsTable = () => {
                     });
                 });
 
+                // Get authentication token
+                const token = AuthService.getToken();
+                if (!token) {
+                    return Alert.alert('Authentication token not found. Please login again.');
+                }
+
+                // Create headers with authentication
+                const headers: Record<string, string> = {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                };
+
                 // Create the fetch promise with abort signal
                 const getImageText = fetch(`${API_BASE_URL}/ai/parseDrugsImage`, {
                     method: "POST",
-                    headers: {"Content-Type": "application/json"},
+                    headers: headers,
                     body: JSON.stringify({base64: attachments[0]}),
                     signal: controller.signal, // Pass the abort signal directly to fetch
                 });
 
                 // Race between the API call and the abort operation
                 const response: any = await Promise.race([getImageText, abortPromise]);
+
+                // Check for authentication errors
+                if (response.status === 401) {
+                    // Logout and prompt to log in again
+                    await AuthService.logout();
+                    setIsAuthenticated(false);
+                    return Alert.alert(
+                        'Session Expired',
+                        'Your session has expired. Please login again to use photo features.',
+                        [
+                            {text: 'OK', onPress: () => router.push('/(tabs)/settings')}
+                        ]
+                    );
+                }
+
+                if (!response.ok && response.status !== 200) {
+                    return Alert.alert(`Server error: ${response.status}`);
+                }
 
                 // Parse the response body
                 const data = await response.json();
@@ -245,6 +316,11 @@ export const PrescriptionsTable = () => {
 
     useFocusEffect(
         useCallback(() => {
+            // Check authentication status when the page comes into focus
+            AuthService.init().then(() => {
+                setIsAuthenticated(AuthService.isAuthenticated());
+            });
+            // Reset the update flag
             setUpdateFlag(prevState => !prevState)
             return () => {
             };

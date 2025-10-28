@@ -50,7 +50,7 @@ export class AuthService extends AbstractAsyncService {
         const res = await fetch(`${API_BASE_URL}/auth/register`, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({email, password, name: "hllo"}),
+            body: JSON.stringify({email, password}),
         });
         console.log('[AuthService] Response status:', res.status);
 
@@ -70,8 +70,7 @@ export class AuthService extends AbstractAsyncService {
     }
 
     protected static override async initialize(): Promise<void> {
-        const saved = await UserDataService.try_get(NAME, {token: null, user: null});
-        this.current = saved;
+        this.current = await UserDataService.try_get(NAME, {token: null, user: null});
     }
 
     protected static override getInit(): boolean {
