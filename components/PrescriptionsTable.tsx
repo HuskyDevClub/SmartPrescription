@@ -249,17 +249,16 @@ export const PrescriptionsTable = () => {
 
                 // Rest of your existing processing logic...
                 if (__DEV__) {
-                    console.log(data)
                     if (data.error) {
                         console.log(data.error)
                     } else {
-                        console.log(data.choices[0].message?.content)
+                        console.log(data.content)
                     }
                 }
-                const result: Record<string, MedicalPrescription> = JSON.parse(data.choices[0].message?.content)
+
                 // Trigger adding a new prescription from the parent component
-                if (result) {
-                    const allPrescriptionsExtracted: MedicalPrescription[] = Object.values(result);
+                if (data.content) {
+                    const allPrescriptionsExtracted: MedicalPrescription[] = Object.values(data.content);
                     if (allPrescriptionsExtracted.length > 0) {
                         for (const p of allPrescriptionsExtracted) {
                             const endAt: Date = new Date();
