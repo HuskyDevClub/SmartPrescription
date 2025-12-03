@@ -1,7 +1,7 @@
 import { AbstractAsyncService } from "@/components/services/AbstractAsyncService";
 import { UserDataService } from "@/components/services/UserDataService";
 
-export const API_BASE_URL: string = 'https://wevv2czb52.execute-api.us-east-1.amazonaws.com';
+export const API_BASE_URL: string = 'https://kbig5mehg4.execute-api.us-east-1.amazonaws.com';
 const NAME = "Auth";
 
 export interface AuthUser {

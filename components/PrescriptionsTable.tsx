@@ -149,6 +149,8 @@ export const PrescriptionsTable = () => {
         // Launch camera for taking a photo
         const result: ImagePickerResult = await ImagePicker.launchCameraAsync({
             base64: true,
+            mediaTypes: ['images'],
+            quality: 0.8,
         });
         // Process image if any photo was taken
         if (!result.canceled) {
@@ -170,6 +172,8 @@ export const PrescriptionsTable = () => {
         // Prompt user for selecting a photo
         const result: ImagePickerResult = await ImagePicker.launchImageLibraryAsync({
             base64: true,
+            mediaTypes: ['images'],
+            quality: 0.8,
         });
         // Process image if any photo was selected
         if (!result.canceled) {
